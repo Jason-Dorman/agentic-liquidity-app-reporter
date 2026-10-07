@@ -32,6 +32,8 @@ Use this map to know what to update:
 
 Before you say a change is done, check this table. All diagrams are Mermaid, inside fenced ` ```mermaid ` blocks. No image files.
 
+**Mark progress in [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md) as you go.** This is part of keeping the docs in lockstep. When you start a pass, set it to `in progress`. Tick each task's checkbox as you finish it. When the pass meets its definition of done, set it to `done` with the date, in the same change as the code. Status lives in four places, and all four move together: the milestone and pass tables, the diagram's colours, the pass heading, and the task checkboxes. When a milestone's exit check passes, paste the result into the row of its last pass. Never leave the build plan behind the code.
+
 ## Engineering principles
 
 [docs/ENGINEERING-PRINCIPLES.md](docs/ENGINEERING-PRINCIPLES.md) applies to every line. The short version:
@@ -44,7 +46,7 @@ Before you say a change is done, check this table. All diagrams are Mermaid, ins
 - No shared global state. No control flags that change behavior.
 - When in doubt, simplify.
 
-Run the review checklist in that document before every commit.
+Run the review checklist in that document before you hand a change to Jason.
 
 ## Hard constraints from the spec
 
@@ -66,7 +68,7 @@ These come from [docs/BUILD-SPEC.md](docs/BUILD-SPEC.md) and [docs/DECISIONS.md]
 
 ## Build order
 
-Follow [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md). The spec's seven steps are milestones, each split into passes. A pass ends with green tests, updated docs, and a commit. A milestone ends with its exit check against the live API. Do not skip ahead. Do not combine passes.
+Follow [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md). The spec's seven steps are milestones, each split into passes. A pass ends with green tests, updated docs, and its row marked `done` in the build plan. Jason commits it. A milestone ends with its exit check against the live API. Do not skip ahead. Do not combine passes.
 
 ## Where things live
 
@@ -88,7 +90,7 @@ Python 3.11 or later, ruled 2026-10-07 (question 1). The `Makefile` is the front
 make setup      # uv sync
 make test       # uv run pytest
 make lint       # uv run ruff check src tests
-make check      # lint, then test. Run this before every commit. No exceptions.
+make check      # lint, then test. Run this before handing over any change. No exceptions.
 make run        # uv run daily-review run
 make pull       # uv run daily-review pull-only
 make render DATE=YYYY-MM-DD   # uv run daily-review render reports/DATE.json
@@ -105,10 +107,10 @@ Use the official `anthropic` SDK. Current shapes are documented in [docs/AGENT-D
 
 ## Git
 
+- **You never commit and never push. Jason handles both.** Do not run `git commit`, `git push`, or any command that rewrites history (`amend`, `rebase`, `reset`, `tag`). Read-only git (`status`, `diff`, `log`) is fine.
 - Jason initialized the repository and pushed it on 2026-10-07 (question 11). Branch `main`.
-- Commit at the end of every pass at minimum, and after each green `make check` during a pass. Never commit with `make check` failing.
-- Commit messages say what changed and why, in plain words.
-- Never commit `.env`, `data/`, `reports/`, `state/`.
+- At the end of a pass, leave the change in the working tree with `make check` green. Tell Jason it is ready, and suggest a commit message that says what changed and why, in plain words.
+- `.env`, `data/`, `reports/` and `state/` are never committed.
 
 ## Writing style for documents
 

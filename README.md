@@ -4,7 +4,7 @@ A read-only script that runs once a day. It pulls the last day of data from the 
 
 The review is for Jason's own reading. It is also the first step toward agents that understand the on-chain landscape before they act.
 
-**Status:** scaffold. Milestone 0 is done (2026-10-07): the package, settings, CLI stubs and `make` targets are in place, and the commands parse but do nothing yet. Pass 1a in [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md) is next. Open questions are in [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md).
+**Status:** scaffold. Pass 0a is done (2026-10-07): the package, settings, CLI stubs and `make` targets are in place, and the commands parse but do nothing yet. Pass 0b, CI on GitHub Actions, is next in [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md). Open questions are in [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md).
 
 ## How one run works
 
