@@ -42,8 +42,12 @@ Grouped by module. Each line is a test or a small group of tests.
 
 ### `config.py`
 
-- Missing `ANTHROPIC_API_KEY` fails before any call and names the setting (R-CFG-2).
+- Missing `ANTHROPIC_API_KEY` fails before any call and names the setting (R-CFG-2). A blank key counts as missing.
 - Defaults: `MODEL`, `MAX_TOOL_CALLS`, `MAX_OUTPUT_TOKENS`, `HISTORY_DAYS` (R-CFG-1).
+- A malformed integer setting (not a whole number, or below 1) fails and names the setting; every bad setting is named in one error (R-CFG-2, T-25).
+- A base URL without `http://` or `https://` fails and names the setting (T-25).
+- `.env` is read; the real environment wins over it; a blank environment value does not hide a `.env` value; a missing `.env` is not an error (T-25).
+- The key never appears when `Settings` is printed (ARCHITECTURE section 7).
 
 ### `pull.py` and `client.py`
 
@@ -110,6 +114,11 @@ Grouped by module. Each line is a test or a small group of tests.
 - `refusal` and `max_tokens`: raise a failure that `cli.py` maps to exit 3; the pack is untouched (R-FAIL-3, R-FAIL-6).
 - `output_config.format` is sent with the agent schema on every request (R-RPT-1).
 
+### Layout
+
+- Each of the eleven modules in [ARCHITECTURE.md](ARCHITECTURE.md) section 3 imports and states its responsibility in a one-line docstring.
+- `vendor/API-SPEC.md` keeps its copy header on line 1 (milestone 0 exit check).
+
 ### `uploads.py`
 
 - Every raw file is uploaded; ids returned in a stable order.
@@ -118,6 +127,8 @@ Grouped by module. Each line is a test or a small group of tests.
 
 ### `cli.py`
 
+- `run`, `run --date YYYY-MM-DD`, `pull-only` and `render <path>` parse; `--help` lists the three commands and `--date` (R-RUN-6, R-RUN-7).
+- A bad `--date`, an unknown command, or a missing argument exits 1, not 2 (T-23).
 - `run` end to end with fakes: report `.json` and `.md` saved, watch list written, uploads deleted, exit 0 (R-RUN-3, R-RUN-5).
 - `pull-only` writes the pack and `derived.json`, calls no Messages API (R-RUN-6).
 - `run --date` with a saved pack makes no pull call and proceeds from the pack (R-RUN-7).

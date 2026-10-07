@@ -105,8 +105,8 @@ Use the official `anthropic` SDK. Current shapes are documented in [docs/AGENT-D
 
 ## Git
 
-- The repository is not initialized yet. Jason decides when (question 11). Do not run `git init` on your own.
-- Once initialized: commit at the end of every pass at minimum, and after each green `make check` during a pass. Never commit with `make check` failing.
+- Jason initialized the repository and pushed it on 2026-10-07 (question 11). Branch `main`.
+- Commit at the end of every pass at minimum, and after each green `make check` during a pass. Never commit with `make check` failing.
 - Commit messages say what changed and why, in plain words.
 - Never commit `.env`, `data/`, `reports/`, `state/`.
 

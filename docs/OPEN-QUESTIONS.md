@@ -2,7 +2,7 @@
 
 Questions that need Jason's ruling. Nothing that depends on a question is coded before it is answered. Answers are recorded in [DECISIONS.md](DECISIONS.md) and the question is marked closed here, with the date.
 
-**Questions 1 to 12 were closed on 2026-10-07.** New questions are appended to the second table with the next number and status `open`.
+**Questions 1 to 12 were closed on 2026-10-07.** Questions 13 and 14 were raised in pass 0a and are open. New questions are appended to the second table with the next number and status `open`.
 
 Statuses: `open`, `closed`.
 
@@ -27,6 +27,8 @@ Statuses: `open`, `closed`.
 | Q10 | **Names.** The spec's layout is `daily-review/` with package `daily_review`; this repo is `liquidity_read_agent`. Keep the repo name and use `daily_review` as the package and `daily-review` as the command? | File paths in every document. | Step 0 | yes | closed |
 | Q11 | **Git.** This directory is not a git repository yet. Initialize it in step 0 and make the documents the first commit? | The principles say commit frequently. | Step 0 | yes | closed |
 | Q12 | **Flow-history statistic.** Spec section 6 lists no statistic over `/flow/history`; the file is in the pack for the agent to read in the sandbox under rule 10. Should `derive.py` also compute per-chain status transitions in the window (count, current status, held since), honoring carry-in rows and held status? | Decides whether pass 2c has a third statistic, and whether the carry-in handling is code or prompt. | Pass 2c | No. Keep to the spec's nine statistics; the agent reads the raw file. Add it later only if the week of reading shows the agent misreads carry-in rows. | closed |
+| Q13 | **Pass 0a choices.** Accept T-23 (argparse; usage errors exit 1, not 2), T-24 (`uv_build`, committed `uv.lock`, ruff with C90 at 10) and T-25 (settings rules: environment over `.env`, blank is unset, integers 1 or more, base URL scheme, key never printed) in [DECISIONS.md](DECISIONS.md)? | They are already in the code from pass 0a, because the pass could not finish without them. Each is a small change to reverse. | Nothing hard. Pass 1a builds on T-25. | accept all three | open |
+| Q14 | **Which commands need the key?** `Settings` requires `ANTHROPIC_API_KEY` today. `pull-only` and `render` never call Claude, but from pass 1a they load settings for the base URL. Should they run without a key? | Without a ruling, `make pull` fails with exit 1 on a machine that has no key, though it never uses one. | Pass 1a | The key is required only by `run`. `Settings` holds it as optional; `run` checks it first, before the health check, and exits 1 naming it. `pull-only` and `render` load without it. | open |
 
 ## Closed
 
@@ -35,7 +37,7 @@ Statuses: `open`, `closed`.
 | Q1 | 2026-10-07 | Python 3.11 or later. | DECISIONS T-01 |
 | Q6 | 2026-10-07 | Ruled on T-02 to T-21 one by one; all accepted. | DECISIONS rulings table |
 | Q10 | 2026-10-07 | Keep repo name; package `daily_review`; command `daily-review`. | DECISIONS rulings table |
-| Q11 | 2026-10-07 | No git init yet. Jason decides when. | DECISIONS rulings table |
+| Q11 | 2026-10-07 | No git init yet. Jason decides when. Later the same day Jason initialized and pushed the repository himself. | DECISIONS rulings table |
 | Q2 | 2026-10-07 | `http://localhost:3300/corridor-scout/api`; tunnel facts recorded in RUNBOOK 1.1; "tunnel down" handling in T-18. | DECISIONS rulings table, T-18, RUNBOOK |
 | Q9 | 2026-10-07 | Jason added the API spec to the repo; moved to `vendor/API-SPEC.md` with a copy header on his ruling. | DECISIONS rulings table |
 | Q3 | 2026-10-07 | `hours` 1 to 720 integer, default 168; `limit` 1 to 5000, default 500; carry-in rows exempt from `limit`; re-call with a larger `limit` when `truncated` is true. | DECISIONS rulings table, PRD R-PULL-6 |

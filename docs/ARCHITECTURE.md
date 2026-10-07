@@ -294,6 +294,7 @@ flowchart TD
 | Condition | Behavior | Exit code (T-09) |
 |---|---|---|
 | Bad or missing setting | Stop before any call. Name the setting. | 1 |
+| Usage error: unknown command, missing argument, bad `--date` | Stop before any call. Name the problem. | 1 (T-23, proposed) |
 | `/health` unreachable (connection refused: "tunnel down") | Stop. No report. Message names the tunnel. | 2 |
 | One or more endpoints fail | Continue. Record. Report written. | 0 |
 | Claude call error, `refusal`, `max_tokens`, or invalid JSON | Keep data pack. No report. | 3 |

@@ -1,13 +1,13 @@
 # Runbook — Blockford Daily Review
 
 **Version:** 0.1 (2026-10-07)
-**Status:** draft. Commands are final (Python, question 1 ruled 2026-10-07). Port and base path are final (question 2 ruled 2026-10-07).
+**Status:** draft. Commands confirmed in pass 0a on 2026-10-07: every `make` target runs; `run`, `pull-only` and `render` parse and exit 0 without doing anything until their passes land. Port and base path are final (question 2 ruled 2026-10-07).
 
 ## 1. Before the first run
 
 | Need | Where from |
 |---|---|
-| Python 3.11 or later and `uv` | `uv` is installed on this machine (0.12.x). Python 3.12.3 is present. |
+| Python 3.11 or later and `uv` | `uv` is installed on this machine (0.12.x). `uv sync` built `.venv` on Python 3.11.8 from pyenv; Python 3.12.3 is also present. |
 | An Anthropic API key | Put in `.env`. Never committed. |
 | The SSM port-forward to the Blockford app | App RUNBOOK section 2b. Local port 3300. See section 1.1 below. |
 | `vendor/API-SPEC.md` | In place. Copied 2026-10-07, spec version 1.0, header line says so. |
@@ -60,7 +60,14 @@ All read by `config.py` from the environment, with `.env` loaded first.
 | `MAX_OUTPUT_TOKENS` | `max_tokens` per Messages API response. | `16000` |
 | `HISTORY_DAYS` | Days of history pulled and past reports fed in. | `7` |
 
-A missing or malformed setting stops the run before any API call and names the setting.
+A missing or malformed setting stops the run before any API call and names the setting. Exit 1. One message names every bad setting at once and never prints a value.
+
+How values are read (T-25, proposed, question 13):
+
+- The real environment wins over `.env`.
+- A blank value counts as not set. A blank `ANTHROPIC_API_KEY` is missing; a blank optional setting takes its default.
+- `MAX_TOOL_CALLS`, `MAX_OUTPUT_TOKENS` and `HISTORY_DAYS` are whole numbers of 1 or more.
+- `BLOCKFORD_API_BASE_URL` starts with `http://` or `https://`.
 
 ## 3. Daily routine
 
@@ -87,7 +94,7 @@ Other commands, with the `uv` command each target runs:
 
 ```bash
 make pull                     # uv run daily-review pull-only: save the data pack and derived.json, no agent
-make render DATE=YYYY-MM-DD   # uv run daily-review render reports/YYYY-MM-DD.json
+make render DATE=YYYY-MM-DD   # uv run daily-review render reports/YYYY-MM-DD.json; without DATE it prints the usage and fails
 make help                     # list every target
 uv run daily-review run --date YYYY-MM-DD   # reuse that date's saved pack; no pull. No make target; it is the exception, not the routine.
 ```
@@ -111,7 +118,7 @@ Running twice on one date overwrites that date's files. The previous-run compari
 | Code | Meaning | What to do |
 |---|---|---|
 | 0 | Report written. Endpoint failures, if any, are in the data quality section. | Read the report. |
-| 1 | Bad or missing setting. | Fix `.env`. |
+| 1 | Bad or missing setting, or a usage error: unknown command, missing argument, or a `--date` that is not a real `YYYY-MM-DD` date (T-23, proposed). | Fix `.env`, or the command line. The message names the problem. |
 | 2 | `/health` unreachable. Nothing written. | Check the port-forward and the app. Run again. |
 | 3 | Claude call failed, refused, hit `max_tokens`, or the JSON did not validate. Data pack kept. | Read the log. Run again. The pack for the date is already saved, so `run --date YYYY-MM-DD` reuses it without pulling again. |
 
@@ -129,6 +136,7 @@ Running twice on one date overwrites that date's files. The previous-run compari
 | `cacheRead` is zero in `run.tokenUsage` | Something volatile crept into the system prompt or tools | The agent test for byte-stable system blocks; diff two requests' rendered prompts |
 | Delete warning at the end of the run | Files API delete failed | The log lists the file ids. Delete them by hand (section 7). |
 | 401 from the Claude API | Bad key | `.env` |
+| `warning: VIRTUAL_ENV=... does not match the project environment path .venv` on every `uv` command | A pyenv or other virtualenv is active in the shell. `uv` ignores it and uses the project's `.venv`. | Harmless. To silence it, `unset VIRTUAL_ENV` in that shell. |
 
 ## 7. Leftover uploaded files
 

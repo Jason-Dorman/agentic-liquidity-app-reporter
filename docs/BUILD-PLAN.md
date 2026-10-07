@@ -1,7 +1,7 @@
 # Build Plan — Blockford Daily Review
 
 **Version:** 0.2 (2026-10-07)
-**Status:** all rulings in as of 2026-10-07. Pass 0a is ready to start once Jason gives the word on `git init`.
+**Status:** pass 0a and milestone 0 done on 2026-10-07. Pass 1a is next and waits on question 14 (which commands need the key). Question 13 asks Jason to rule on the three choices made in pass 0a (T-23 to T-25).
 
 Spec section 12 sets the order: six steps, each ending with a check before the next starts, then a week of reading. Those are the **milestones** here, with their exit checks unchanged. Each milestone is split into **passes** on module boundaries, so that one pass is small enough to write, test, review and commit in one sitting, and no pass touches code another pass owns. Jason ruled this split on 2026-10-07.
 
@@ -52,8 +52,8 @@ flowchart TD
 
 | Pass | Owns | Blocked by | Status |
 |---|---|---|---|
-| 0a | `pyproject.toml`, `Makefile`, package skeleton, `config.py`, CLI stubs, fixtures dir | Jason's word on `git init` (Q11) | ready |
-| 1a | `client.py`, `store.py` (pack paths and save), health check | — | not started |
+| 0a | `pyproject.toml`, `Makefile`, package skeleton, `config.py`, CLI stubs, fixtures dir | — | done 2026-10-07. Milestone 0 exit check passed on 2026-10-07: `make check` gives lint clean and 53 tests passed; `make help` lists the eight targets; `uv run daily-review --help` lists `run`, `pull-only`, `render` and `--date`; `vendor/API-SPEC.md` line 1 holds the copy header (test in `tests/test_layout.py`). Choices T-23 to T-25 wait on Q13. |
+| 1a | `client.py`, `store.py` (pack paths and save), health check | Q14: which commands need the key | not started |
 | 1b | `pull.py` catalogue, manifest, failure records, `flow_history` retry | — | not started |
 | 2a | `derive.py` skeleton, windows, first run, data quality; fixture conventions | — | not started |
 | 2b | Finding comparison, corridor tier changes | — | not started |
@@ -90,7 +90,7 @@ flowchart TD
 
 Tasks:
 
-1. `git init` and the first commit of the documents, only when Jason says so (Q11 ruling: not yet).
+1. `git init` and the first commit of the documents, only when Jason says so. Done by Jason before the pass (commit `ba02ce2`).
 2. `pyproject.toml` with the package `daily_review`, the `daily-review` console script, dependencies (`anthropic`, `httpx`, `pydantic`, `python-dotenv`), dev dependencies (`pytest`, `ruff`), `requires-python >= 3.11` (T-02).
 3. `Makefile` with the eight targets of T-22: `setup`, `test`, `lint`, `check`, `run`, `pull`, `render DATE=YYYY-MM-DD`, `help`. Each one line over `uv`. `help` is the default target and lists the others.
 4. `src/daily_review/` with the eleven modules named in [ARCHITECTURE.md](ARCHITECTURE.md) section 3, each empty except a one-line docstring saying its responsibility.
@@ -106,6 +106,8 @@ Tests: missing `ANTHROPIC_API_KEY` fails before any call and names the setting; 
 **Milestone 0 exit check:** the same, plus `vendor/API-SPEC.md` present with its copy header.
 
 **Docs:** RUNBOOK (commands confirmed), this file (status).
+
+**Outcome (2026-10-07):** done. Three choices the tasks needed and the spec does not make were recorded as proposals T-23 to T-25 and put to Jason as question 13. Question 14 (which commands need the key) was raised for pass 1a.
 
 ## Milestone 1 — Pull
 

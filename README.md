@@ -4,7 +4,7 @@ A read-only script that runs once a day. It pulls the last day of data from the 
 
 The review is for Jason's own reading. It is also the first step toward agents that understand the on-chain landscape before they act.
 
-**Status:** pre-build. The documents are drafted and every open question was ruled on 2026-10-07 (see [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md) and [docs/DECISIONS.md](docs/DECISIONS.md)). Pass 0a in [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md) is next.
+**Status:** scaffold. Milestone 0 is done (2026-10-07): the package, settings, CLI stubs and `make` targets are in place, and the commands parse but do nothing yet. Pass 1a in [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md) is next. Open questions are in [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md).
 
 ## How one run works
 
@@ -75,6 +75,8 @@ liquidity_read_agent/
   README.md
   CLAUDE.md
   Makefile              # setup, test, lint, check, run, pull, render, help
+  pyproject.toml        # package, dependencies, the daily-review command, ruff and pytest
+  uv.lock               # pinned versions; committed
   .env.example
   docs/                 # all project documents
   src/daily_review/     # the package (see docs/ARCHITECTURE.md)

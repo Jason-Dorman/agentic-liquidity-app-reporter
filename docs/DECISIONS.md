@@ -21,7 +21,7 @@ Statuses: `accepted`, `proposed`, `rejected`, `superseded`.
 
 ## Proposed, technical
 
-Made while drafting and ruled on one by one on 2026-10-07 (question 6 in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md)). New proposals are appended here with status `proposed` and go to Jason before they are coded.
+Made while drafting and ruled on one by one on 2026-10-07 (question 6 in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md)). New proposals are appended here with status `proposed` and go to Jason before they are coded. T-23 to T-25 were made inside pass 0a, where the build plan's tasks needed them; they are coded and wait on question 13.
 
 | ID | Decision | Why | Status |
 |---|---|---|---|
@@ -47,6 +47,9 @@ Made while drafting and ruled on one by one on 2026-10-07 (question 6 in [OPEN-Q
 | T-20 | A `--date YYYY-MM-DD` option on `run` reuses that date's saved data pack instead of pulling again. | After an exit 3 the pack is already on disk; re-pulling changes the window and wastes a read of prod. Not in the spec. | accepted 2026-10-07 |
 | T-21 | Tests never touch the network and never call the Claude API. Every I/O module has a fake. | Tests must run anywhere, cost nothing, and never read prod. Stated in CLAUDE.md and TESTING.md; needs Jason's ruling to be a rule. | accepted 2026-10-07 |
 | T-22 | A small `Makefile` is the front door for commands: `setup`, `test`, `lint`, `check` (lint then test; the gate before every commit), `run`, `pull`, `render DATE=YYYY-MM-DD`, `help`. Each target is one line over `uv`. No tunnel target; that lives in the app repo. | One command for the pre-commit gate so it is never skipped; the daily routine becomes `make run`; `make help` lists everything. | accepted 2026-10-07 |
+| T-23 | The CLI is built on the standard library's `argparse`; no CLI package is added. A usage error (unknown command, missing argument, a `--date` that is not a real `YYYY-MM-DD` date) exits **1**, not argparse's default 2. `--date` exists on `run` only. | T-09 gives exit 2 one meaning, "API unreachable", and the runbook sends Jason to the tunnel on a 2. argparse would also exit 2 on a typo. A usage error is bad input, like a bad setting. The spec's dependency list has no CLI package. Made in pass 0a. | proposed |
+| T-24 | Tooling: build backend `uv_build`; `uv.lock` committed; dependencies carry lower bounds only, as `uv add` writes them; ruff rules E, W, F, I, B, UP and C90 with `max-complexity = 10`; line length 100. | The lock file gives every machine the same versions. C90 makes lint enforce the complexity rule in ENGINEERING-PRINCIPLES. `uv_build` is uv's own backend, so no second build tool. Made in pass 0a. | proposed |
+| T-25 | Settings rules in `config.py`: the real environment wins over `.env`; a blank value counts as not set (the blank key in `.env.example` reads as missing, a blank optional setting takes its default); `MAX_TOOL_CALLS`, `MAX_OUTPUT_TOKENS` and `HISTORY_DAYS` are whole numbers of 1 or more; `BLOCKFORD_API_BASE_URL` starts with `http://` or `https://`; one error names every bad setting and never echoes a value; the key is held as a secret value that prints as asterisks; `.env` is read without writing into the process environment; `Settings` is frozen. | R-CFG-2 says a malformed setting stops the run and names it, but not what malformed means. Zero tool calls or zero history days would make a run that cannot do its job. Not echoing values keeps the key out of every message. Made in pass 0a. | proposed |
 
 ## Rulings from Jason
 
@@ -74,3 +77,4 @@ Appended as they arrive, newest last. Each entry names the question or proposal 
 | 2026-10-07 | T-22 | Yes to a small Makefile with the eight targets. Added in pass 0a. |
 | 2026-10-07 | Build plan | The spec's seven steps stay as milestones with their exit checks unchanged. Each is split into passes on module boundaries (0a; 1a, 1b; 2a to 2e; 3a to 3c; 4a, 4b; 5a, 5b; 6a; 7), each pass ending with green tests and a commit. |
 | 2026-10-07 | Q7 | The four finding surfaces are Capital Flow (`/flow/chains`), Bridge Health (`/bridges/:bridge/health`), Corridor Confidence (`/corridors/confidence`), Stablecoin Liquidity (`/stablecoins/:asset/liquidity`). `finding.id` is content-addressed and stable for the same condition. Compare ids across runs by equality: a new id is a new condition, a missing id is a condition that no longer holds. |
+| 2026-10-07 | Q11 | Jason initialized the repository and pushed the documents himself (commit `ba02ce2`, branch `main`). Pass 0a task 1 is done by that. |
