@@ -1,17 +1,19 @@
 # Testing — Blockford Daily Review
 
-**Version:** 0.1 (2026-10-07)
+**Version:** 0.2 (2026-10-07)
 
 [ENGINEERING-PRINCIPLES.md](ENGINEERING-PRINCIPLES.md): write tests first when possible, every change needs regression tests, never refactor without tests. This document says how that applies here.
 
 ## 1. Rules
 
-1. Tests never touch the network. No call reaches the Blockford API or the Claude API from a test.
+1. Tests never touch the network. No call reaches the Blockford API or the Claude API from a test. This is enforced, not trusted: an autouse fixture in `tests/conftest.py` makes every socket `connect`, `connect_ex` and `getaddrinfo` raise `RuntimeError` with the words `tests never touch the network (T-21)` (Q16). It is a `RuntimeError` and not a connection error, so a client test that expects "tunnel down" can never pass on a real refused connection. There is no way to switch it off for one test.
 2. Every I/O module has a fake: `client.py` (HTTP), `store.py` (filesystem, use a temp dir), `uploads.py` (Files API), and the Messages API inside `agent.py`.
 3. Fixtures are response samples taken from `vendor/API-SPEC.md`. Each fixture file names the spec section it came from.
 4. Pure modules (`derive.py`, `schema.py`, `render.py`) are tested with values in, values out. No mocks.
 5. A test states the requirement it covers in its name or docstring, using the ids from [PRD.md](PRD.md).
 6. A bug found in a live report gets a test before it gets a fix.
+7. Repository rules are tests too (Q17): `tests/test_repo_rules.py` reads `git ls-files` and fails if a tracked file is an `.env` file other than `.env.example`, sits under the top-level `data/`, `reports/` or `state/`, or is an image under `docs/`. It skips with a reason outside a git checkout. It reads the index, so a staged file is caught before the commit.
+8. `make check` runs on GitHub Actions on every push and pull request ([RUNBOOK.md](RUNBOOK.md) section 10).
 
 ## 2. Levels
 
@@ -118,6 +120,14 @@ Grouped by module. Each line is a test or a small group of tests.
 
 - Each of the eleven modules in [ARCHITECTURE.md](ARCHITECTURE.md) section 3 imports and states its responsibility in a one-line docstring.
 - `vendor/API-SPEC.md` keeps its copy header on line 1 (milestone 0 exit check).
+
+### Network guard and repository rules
+
+- The socket guard makes `connect` and `connect_ex` to localhost, `create_connection`, a name lookup, and an `httpx.get` raise; the error is not an `OSError` (T-21, Q16).
+- The repository rule function passes a clean file list and accepts `.env.example`.
+- It reports, with its rule, each of `.env`, `.env.local`, a nested `.env`, `data/2026-10-07/raw/health.json`, `reports/2026-10-07.json` and `.md`, `state/watchlist.json`, `docs/diagram.png`, an upper-case `.SVG` under `docs/`.
+- A `reports` or `state` name below the top level is not a breach.
+- This checkout tracks nothing it should not (hard constraint 13).
 
 ### `uploads.py`
 

@@ -1,0 +1,32 @@
+# The gate on GitHub: `make check` on every push and every pull request (BUILD-PLAN pass 0b).
+# Read-only and no secrets, so no step can reach the Claude API with a key.
+# Actions are pinned by major version tag (Q18). Python 3.11 only, the floor (Q15).
+
+name: check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install from the lock file (fails if uv.lock is out of step with pyproject.toml)
+        run: uv sync --locked
+
+      - name: Lint, then test
+        run: make check

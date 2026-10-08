@@ -81,3 +81,7 @@ Appended as they arrive, newest last. Each entry names the question or proposal 
 | 2026-10-07 | Git | Claude never commits and never pushes. Jason handles both. Claude leaves each finished pass in the working tree with `make check` green and suggests a commit message. |
 | 2026-10-07 | Build plan | Mark progress in the build plan as work moves: a pass goes to `in progress` when it starts and to `done` with its date in the same change that finishes it. This is part of keeping the docs in lockstep. |
 | 2026-10-07 | CI | GitHub Actions runs the rules written so far on every push. It does not fit pass 0a, so it is added to the build plan as pass 0b, before pass 1a. Its choices are questions 15 to 18. |
+| 2026-10-07 | Q15 | CI runs on Python 3.11 only, the floor that `requires-python` promises. |
+| 2026-10-07 | Q16 | Tests are kept off the network by an autouse fixture in `tests/conftest.py` that makes every socket connection raise. No `pytest-socket` dependency. |
+| 2026-10-07 | Q17 | The repository rules run as pytest tests in `tests/test_repo_rules.py`, so `make check` catches a breach before the commit, locally and in CI. `make check` stays the one gate. |
+| 2026-10-07 | Q18 | GitHub actions are pinned by major version tag (`actions/checkout@v7`, `astral-sh/setup-uv@v7`). The workflow is read-only and holds no secrets. |

@@ -1,7 +1,7 @@
 # Build Plan — Blockford Daily Review
 
 **Version:** 0.2 (2026-10-07)
-**Status:** pass 0a done on 2026-10-07. Pass 0b (CI) was added on 2026-10-07, so milestone 0 is in progress again. Pass 0b is next and waits on questions 15 to 18. Pass 1a waits on question 14. Question 13 asks Jason to rule on the three choices made in pass 0a (T-23 to T-25).
+**Status:** pass 0a done on 2026-10-07. Pass 0b (CI) was added on 2026-10-07, so milestone 0 is in progress again. Pass 0b is in progress: questions 15 to 18 were ruled on 2026-10-07. Pass 1a waits on question 14. Question 13 asks Jason to rule on the three choices made in pass 0a (T-23 to T-25).
 
 Spec section 12 sets the order: six steps, each ending with a check before the next starts, then a week of reading. Those are the **milestones** here, with their exit checks unchanged. Each milestone is split into **passes** on module boundaries, so that one pass is small enough to write, test, review and commit in one sitting, and no pass touches code another pass owns. Jason ruled this split on 2026-10-07.
 
@@ -50,6 +50,7 @@ flowchart TD
     classDef done fill:#d3f4dc,stroke:#1f7a3a,color:#0b3d1c
     classDef progress fill:#fff2cc,stroke:#a67c00,color:#3d2e00
     class P0a done
+    class P0b progress
 ```
 
 Green is done. Yellow is in progress. Uncoloured is not started.
@@ -58,7 +59,7 @@ Green is done. Yellow is in progress. Uncoloured is not started.
 
 | Milestone | Passes | Status |
 |---|---|---|
-| 0 Scaffold | 0a, 0b | in progress: 0a done, 0b not started |
+| 0 Scaffold | 0a, 0b | in progress: 0a done, 0b in progress |
 | 1 Pull | 1a, 1b | not started |
 | 2 Derive | 2a to 2e | not started |
 | 3 Agent without tools | 3a to 3c | not started |
@@ -70,7 +71,7 @@ Green is done. Yellow is in progress. Uncoloured is not started.
 | Pass | Owns | Blocked by | Status |
 |---|---|---|---|
 | 0a | `pyproject.toml`, `Makefile`, package skeleton, `config.py`, CLI stubs, fixtures dir | — | **done** 2026-10-07 |
-| 0b | `.github/workflows/check.yml`, test network guard, repository rule tests | Q15 to Q18 | not started |
+| 0b | `.github/workflows/check.yml`, test network guard, repository rule tests | — (Q15 to Q18 ruled 2026-10-07) | **in progress** |
 | 1a | `client.py`, `store.py` (pack paths and save), health check | Q14: which commands need the key | not started |
 | 1b | `pull.py` catalogue, manifest, failure records, `flow_history` retry | — | not started |
 | 2a | `derive.py` skeleton, windows, first run, data quality; fixture conventions | — | not started |
@@ -126,17 +127,17 @@ Tests: missing `ANTHROPIC_API_KEY` fails before any call and names the setting; 
 
 **Outcome (2026-10-07):** done. `make check` gives lint clean and 53 tests passed. `make help` lists the eight targets. `uv run daily-review --help` lists `run`, `pull-only`, `render` and `--date`. `vendor/API-SPEC.md` line 1 holds the copy header, checked by a test in `tests/test_layout.py`. Three choices the tasks needed and the spec does not make were recorded as proposals T-23 to T-25 and put to Jason as question 13. Question 14 (which commands need the key) was raised for pass 1a.
 
-### Pass 0b — CI (not started)
+### Pass 0b — CI (in progress)
 
 Added on 2026-10-07 at Jason's request: GitHub Actions runs the rules written so far on every push and pull request, so a machine enforces them, not memory. It comes before pass 1a so that every later pass lands under it.
 
 Tasks:
 
-1. [ ] `.github/workflows/check.yml`, run on every push and every pull request. `permissions: contents: read`. No secrets passed in, so no step can reach the Claude API with a key. Steps: check out; install `uv` with `astral-sh/setup-uv`; `uv sync --locked`, which fails when `uv.lock` is out of step with `pyproject.toml`; `make check`.
-2. [ ] Python version(s) as Jason rules in Q15. Proposed: 3.11 only, the floor in `requires-python`.
-3. [ ] Enforce T-21 in the suite (Q16): `tests/conftest.py` holds an autouse fixture that makes every socket connection raise. A test that reaches the network then fails, on Jason's machine and in CI alike.
-4. [ ] Repository rules as tests in `tests/test_repo_rules.py`, so `make check` runs them locally as well as in CI (Q17). A pure function takes the list of tracked files and returns the breaches: a tracked `.env` other than `.env.example`; anything under `data/`, `reports/` or `state/`; an image file under `docs/` (diagrams are Mermaid only). The test feeds it `git ls-files` and skips with a reason when not in a git checkout.
-5. [ ] Action versions pinned as Jason rules in Q18.
+1. [x] `.github/workflows/check.yml`, run on every push and every pull request. `permissions: contents: read`. No secrets passed in, so no step can reach the Claude API with a key. Steps: check out; install `uv` with `astral-sh/setup-uv`; `uv sync --locked`, which fails when `uv.lock` is out of step with `pyproject.toml`; `make check`.
+2. [x] Python version(s) as Jason rules in Q15. Ruled 2026-10-07: 3.11 only, the floor in `requires-python`, set through setup-uv's `python-version`.
+3. [x] Enforce T-21 in the suite (Q16): `tests/conftest.py` holds an autouse fixture that makes every socket connection raise. A test that reaches the network then fails, on Jason's machine and in CI alike.
+4. [x] Repository rules as tests in `tests/test_repo_rules.py`, so `make check` runs them locally as well as in CI (Q17). A pure function takes the list of tracked files and returns the breaches: a tracked `.env` other than `.env.example`; anything under `data/`, `reports/` or `state/`; an image file under `docs/` (diagrams are Mermaid only). The test feeds it `git ls-files` and skips with a reason when not in a git checkout.
+5. [x] Action versions pinned as Jason rules in Q18. Ruled 2026-10-07: major version tags, `actions/checkout@v7` and `astral-sh/setup-uv@v7`, the latest majors on that date.
 6. [ ] Jason, in the GitHub settings: protect `main` so the check must pass before a merge. Claude cannot do this and never pushes.
 
 What CI enforces once this pass is done:
@@ -161,6 +162,8 @@ Tests: the socket guard makes a connection to localhost raise; the repository ru
 **Milestone 0 exit check:** pass 0a's done-when line, plus `vendor/API-SPEC.md` present with its copy header, plus the workflow green on GitHub. The result is pasted into this pass's row.
 
 **Docs:** RUNBOOK (a CI section: what runs, how to read a red check), TESTING (the socket guard and the repository rules), CLAUDE.md (where the workflow lives), README (layout), this file (status).
+
+**Progress (2026-10-07):** tasks 1 to 5 are in the working tree. `make check` locally gives lint clean and 72 tests passed (53 from pass 0a, 19 new). `uv sync --locked` passes. Beyond the plan, the socket guard also blocks name lookups, so no DNS query leaves the machine, and raises `RuntimeError`, not a connection error, so it cannot pass for "tunnel down". The pass stays `in progress` until Jason pushes, the workflow shows green on GitHub, a branch with a deliberate lint error shows red, and task 6 is done.
 
 ## Milestone 1 — Pull (not started)
 
