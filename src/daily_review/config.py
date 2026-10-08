@@ -3,6 +3,7 @@
 import os
 from collections.abc import Mapping
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from dotenv import dotenv_values
 from pydantic import BaseModel, ConfigDict, PositiveInt, SecretStr, ValidationError, field_validator
@@ -15,8 +16,8 @@ class SettingsError(Exception):
 
     def __init__(self, problems: Mapping[str, str]):
         self.names = tuple(problems)
-        lines = [f"{name}: {problem}" for name, problem in problems.items()]
-        super().__init__("Bad settings. Fix .env or the environment.\n" + "\n".join(lines))
+        listed = "; ".join(f"{name}: {problem}" for name, problem in problems.items())
+        super().__init__(f"Bad settings. Fix .env or the environment. {listed}")
 
 
 class Settings(BaseModel):
@@ -24,7 +25,7 @@ class Settings(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    anthropic_api_key: SecretStr
+    anthropic_api_key: SecretStr | None = None  # required by `run` only (Q14)
     blockford_api_base_url: str = "http://localhost:3300/corridor-scout/api"
     model: str = "claude-sonnet-5-5"
     max_tool_calls: PositiveInt = 15
@@ -36,6 +37,15 @@ class Settings(BaseModel):
     def _http_url(cls, value: str) -> str:
         if not value.startswith(("http://", "https://")):
             raise ValueError("must start with http:// or https://")
+        try:
+            parts = urlsplit(value)
+            port = parts.port
+        except ValueError:
+            raise ValueError("is not a URL that can be read: check the host and port") from None
+        if not parts.hostname:
+            raise ValueError("has no host")
+        if port == 0:
+            raise ValueError("has a port that is not a number from 1 to 65535")
         return value
 
 
@@ -67,6 +77,13 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         return Settings(**values)
     except ValidationError as error:
         raise SettingsError(_problems(error)) from None
+
+
+def require_api_key(settings: Settings) -> SecretStr:
+    """The key, for the one command that calls Claude (Q14). Raises SettingsError naming it."""
+    if settings.anthropic_api_key is None:
+        raise SettingsError({"ANTHROPIC_API_KEY": "is required by the run command"})
+    return settings.anthropic_api_key
 
 
 def settings_from_environment(dotenv_path: Path = DEFAULT_DOTENV) -> Settings:

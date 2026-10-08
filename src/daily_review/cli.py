@@ -1,13 +1,28 @@
 """Parse the command, wire the modules, run the steps in order, and map outcomes to exit codes."""
 
 import argparse
+import logging
 import re
 import sys
-from collections.abc import Sequence
+import time
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
+from daily_review.client import Client, Getter, TunnelDown
+from daily_review.config import Settings, SettingsError, settings_from_environment
+from daily_review.pull import Healthy, check_health
+
+# Exit codes (T-09).
+OK = 0
+BAD_SETTING = 1
 USAGE_ERROR = 1  # T-09 keeps exit 2 for "API unreachable", so usage errors share exit 1 (T-23).
+API_UNREACHABLE = 2
+
+TUNNEL_HINT = "Open the SSM port-forward (RUNBOOK section 1.1) and run again."
+
+log = logging.getLogger("daily_review")
 
 
 class _Parser(argparse.ArgumentParser):
@@ -48,7 +63,54 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def _client_for(settings: Settings) -> Getter:
+    return Client(settings.blockford_api_base_url)
+
+
+@dataclass(frozen=True)
+class Wiring:
+    """What main builds from the outside world. Tests pass fakes in its place."""
+
+    load_settings: Callable[[], Settings] = settings_from_environment
+    make_client: Callable[[Settings], Getter] = _client_for
+
+
+def _configure_logging() -> None:
+    """Log to stderr with UTC times (T-16). A no-op when the root logger already has a handler."""
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s", "%Y-%m-%dT%H:%M:%SZ")
+    formatter.converter = time.gmtime
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(formatter)
+    logging.basicConfig(level=logging.INFO, handlers=[handler])
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # its INFO line holds the full URL
+
+
+def _health(client: Getter) -> int:
+    """Run the health check, log what it found, and give the exit code (T-19, T-27)."""
+    health = check_health(client)
+    if isinstance(health, Healthy):
+        log.info(health.summary)
+        return OK
+    log.error("health check failed: %s", health.message)
+    if isinstance(health, TunnelDown):
+        log.error(TUNNEL_HINT)
+    return API_UNREACHABLE
+
+
+def _pull_only(wiring: Wiring) -> int:
+    """Pass 1a: the health check only. The pull and derive steps land in passes 1b and 2a."""
+    try:
+        settings = wiring.load_settings()
+    except SettingsError as error:
+        log.error("%s", error)
+        return BAD_SETTING
+    return _health(wiring.make_client(settings))
+
+
+def main(argv: Sequence[str] | None = None, wiring: Wiring | None = None) -> int:
     """Entry point for the daily-review command. Returns the exit code."""
-    build_parser().parse_args(argv)
-    return 0
+    args = build_parser().parse_args(argv)
+    _configure_logging()
+    if args.command == "pull-only":
+        return _pull_only(wiring or Wiring())
+    return OK  # run lands in pass 3b, render in 3a and 3b.

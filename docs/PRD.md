@@ -129,7 +129,7 @@ Code computes these. The agent does not. All from spec section 6.
 
 | ID | Requirement | Spec | Status |
 |---|---|---|---|
-| R-CFG-1 | Settings: `ANTHROPIC_API_KEY`, `BLOCKFORD_API_BASE_URL`, `MODEL`, `MAX_TOOL_CALLS`, `MAX_OUTPUT_TOKENS`, `HISTORY_DAYS`. The key lives in `.env` and is never committed. | §10 | spec |
+| R-CFG-1 | Settings: `ANTHROPIC_API_KEY`, `BLOCKFORD_API_BASE_URL`, `MODEL`, `MAX_TOOL_CALLS`, `MAX_OUTPUT_TOKENS`, `HISTORY_DAYS`. The key lives in `.env` and is never committed. Only `run` needs the key; `pull-only` and `render` run without it (Q14, ruled 2026-10-08). | §10 | spec |
 | R-CFG-2 | A missing or malformed setting stops the run before any API call, with a message naming the setting. | — | accepted (T-09) |
 
 ### 5.8 Non-functional

@@ -1,7 +1,7 @@
 # Build Plan — Blockford Daily Review
 
-**Version:** 0.2 (2026-10-07)
-**Status:** pass 0a done on 2026-10-07. Pass 0b (CI) was added on 2026-10-07, so milestone 0 is in progress again. Pass 0b is in progress: questions 15 to 18 were ruled on 2026-10-07. Pass 1a waits on question 14. Question 13 asks Jason to rule on the three choices made in pass 0a (T-23 to T-25).
+**Version:** 0.4 (2026-10-08)
+**Status:** milestone 0 done on 2026-10-08: pass 0a on 2026-10-07, pass 0b (CI) on 2026-10-08, with its red-branch check and branch protection waived by Jason. Pass 1a is in progress: questions 13 and 14 were ruled on 2026-10-08, its three tasks are built, and it waits on one live check with the tunnel open.
 
 Spec section 12 sets the order: six steps, each ending with a check before the next starts, then a week of reading. Those are the **milestones** here, with their exit checks unchanged. Each milestone is split into **passes** on module boundaries, so that one pass is small enough to write, test, review and commit in one sitting, and no pass touches code another pass owns. Jason ruled this split on 2026-10-07.
 
@@ -50,7 +50,8 @@ flowchart TD
     classDef done fill:#d3f4dc,stroke:#1f7a3a,color:#0b3d1c
     classDef progress fill:#fff2cc,stroke:#a67c00,color:#3d2e00
     class P0a done
-    class P0b progress
+    class P0b done
+    class P1a progress
 ```
 
 Green is done. Yellow is in progress. Uncoloured is not started.
@@ -59,8 +60,8 @@ Green is done. Yellow is in progress. Uncoloured is not started.
 
 | Milestone | Passes | Status |
 |---|---|---|
-| 0 Scaffold | 0a, 0b | in progress: 0a done, 0b in progress |
-| 1 Pull | 1a, 1b | not started |
+| 0 Scaffold | 0a, 0b | **done** 2026-10-08 |
+| 1 Pull | 1a, 1b | in progress |
 | 2 Derive | 2a to 2e | not started |
 | 3 Agent without tools | 3a to 3c | not started |
 | 4 `api_get` | 4a, 4b | not started |
@@ -71,8 +72,8 @@ Green is done. Yellow is in progress. Uncoloured is not started.
 | Pass | Owns | Blocked by | Status |
 |---|---|---|---|
 | 0a | `pyproject.toml`, `Makefile`, package skeleton, `config.py`, CLI stubs, fixtures dir | — | **done** 2026-10-07 |
-| 0b | `.github/workflows/check.yml`, test network guard, repository rule tests | — (Q15 to Q18 ruled 2026-10-07) | **in progress** |
-| 1a | `client.py`, `store.py` (pack paths and save), health check | Q14: which commands need the key | not started |
+| 0b | `.github/workflows/check.yml`, test network guard, repository rule tests | — (Q15 to Q18 ruled 2026-10-07) | **done** 2026-10-08. Milestone 0 exit check (2026-10-08 UTC): pass 0a's done-when line holds; `vendor/API-SPEC.md` is present with its copy header (`tests/test_layout.py`); workflow `check` green on GitHub Actions for PR #1 (push and pull_request runs) and on `main` after the merge (run 37720954382, commit `f4adc3b`). The red-branch check and branch protection (task 6) were waived by Jason; task 6 stays open as a follow-up. |
+| 1a | `client.py`, `store.py` (pack paths and save), health check | — (Q13, Q14 ruled 2026-10-08) | in progress |
 | 1b | `pull.py` catalogue, manifest, failure records, `flow_history` retry | — | not started |
 | 2a | `derive.py` skeleton, windows, first run, data quality; fixture conventions | — | not started |
 | 2b | Finding comparison, corridor tier changes | — | not started |
@@ -102,7 +103,7 @@ Green is done. Yellow is in progress. Uncoloured is not started.
 
 **A milestone is done when** every pass in it is done and the milestone's exit check from the spec passes against the live API, with the result pasted into the status table row of its last pass.
 
-## Milestone 0 — Scaffold (in progress)
+## Milestone 0 — Scaffold (done 2026-10-08)
 
 **Goal:** a repository that runs an empty command and an empty test suite, with the documents and the vendored spec in place.
 
@@ -127,7 +128,7 @@ Tests: missing `ANTHROPIC_API_KEY` fails before any call and names the setting; 
 
 **Outcome (2026-10-07):** done. `make check` gives lint clean and 53 tests passed. `make help` lists the eight targets. `uv run daily-review --help` lists `run`, `pull-only`, `render` and `--date`. `vendor/API-SPEC.md` line 1 holds the copy header, checked by a test in `tests/test_layout.py`. Three choices the tasks needed and the spec does not make were recorded as proposals T-23 to T-25 and put to Jason as question 13. Question 14 (which commands need the key) was raised for pass 1a.
 
-### Pass 0b — CI (in progress)
+### Pass 0b — CI (done 2026-10-08)
 
 Added on 2026-10-07 at Jason's request: GitHub Actions runs the rules written so far on every push and pull request, so a machine enforces them, not memory. It comes before pass 1a so that every later pass lands under it.
 
@@ -138,7 +139,7 @@ Tasks:
 3. [x] Enforce T-21 in the suite (Q16): `tests/conftest.py` holds an autouse fixture that makes every socket connection raise. A test that reaches the network then fails, on Jason's machine and in CI alike.
 4. [x] Repository rules as tests in `tests/test_repo_rules.py`, so `make check` runs them locally as well as in CI (Q17). A pure function takes the list of tracked files and returns the breaches: a tracked `.env` other than `.env.example`; anything under `data/`, `reports/` or `state/`; an image file under `docs/` (diagrams are Mermaid only). The test feeds it `git ls-files` and skips with a reason when not in a git checkout.
 5. [x] Action versions pinned as Jason rules in Q18. Ruled 2026-10-07: major version tags, `actions/checkout@v7` and `astral-sh/setup-uv@v7`, the latest majors on that date.
-6. [ ] Jason, in the GitHub settings: protect `main` so the check must pass before a merge. Claude cannot do this and never pushes.
+6. [ ] Jason, in the GitHub settings: protect `main` so the check must pass before a merge. Claude cannot do this and never pushes. **Waived for pass 0b by Jason on 2026-10-08; open as a follow-up.** On 2026-10-08 `main` had no branch protection and no rulesets.
 
 What CI enforces once this pass is done:
 
@@ -165,21 +166,27 @@ Tests: the socket guard makes a connection to localhost raise; the repository ru
 
 **Progress (2026-10-07):** tasks 1 to 5 are in the working tree. `make check` locally gives lint clean and 72 tests passed (53 from pass 0a, 19 new). `uv sync --locked` passes. Beyond the plan, the socket guard also blocks name lookups, so no DNS query leaves the machine, and raises `RuntimeError`, not a connection error, so it cannot pass for "tunnel down". The pass stays `in progress` until Jason pushes, the workflow shows green on GitHub, a branch with a deliberate lint error shows red, and task 6 is done.
 
-## Milestone 1 — Pull (not started)
+**Outcome (2026-10-08 UTC):** done. Jason pushed the change as PR #1 (`feature/ci-gates`) and merged it. Workflow `check` passed on the branch push, on the pull request, and on `main` after the merge (run 37720954382, about 12 seconds). Two done-when items were not met and Jason waived them: no run with a deliberate lint error shows red on GitHub (no failed run exists), and `main` is not protected (task 6). Recorded in [DECISIONS.md](DECISIONS.md). Question 19 (unanchored `.gitignore` entries) was raised for pass 3a.
+
+## Milestone 1 — Pull (in progress)
 
 **Goal:** save the data pack. Every endpoint has a file or a failure record.
 
-### Pass 1a — client, store, health (not started)
+### Pass 1a — client, store, health (in progress)
 
 Tasks:
 
-1. [ ] `client.py`: one `get(path, params, timeout)` function. Returns a small result value: status, headers, body bytes; or an error value that distinguishes connection refused (reported as "tunnel down", T-18) from timeout from HTTP error. No POST method exists.
-2. [ ] `store.py`: paths by date (`data/YYYY-MM-DD/raw/`, `failures/`, `manifest.json`, `derived.json`); `save_pack` writes raw bodies byte for byte.
-3. [ ] `cli.py` `pull-only`: for this pass, the health check only. Reachable: log the body's `status`, `corridorsMonitored`, `updatedAt` (T-19). Connection refused: print "tunnel down", exit 2. HTTP error: print the status, exit 2.
+1. [x] `client.py`: one `get(path, params, timeout)` function. Returns a small result value: status, headers, body bytes; or an error value that distinguishes connection refused (reported as "tunnel down", T-18) from timeout from HTTP error. No POST method exists.
+2. [x] `store.py`: paths by date (`data/YYYY-MM-DD/raw/`, `failures/`, `manifest.json`, `derived.json`); `save_pack` writes raw bodies byte for byte.
+3. [x] `cli.py` `pull-only`: for this pass, the health check only. Reachable: log the body's `status`, `corridorsMonitored`, `updatedAt` (T-19). Connection refused: print "tunnel down", exit 2. HTTP error: print the status, exit 2.
 
 Tests: `FakeClient` by `(path, params)`; the client type has no attribute that sends a non-GET request; health reachable logs the three fields; connection refused exits 2 with "tunnel down" and writes nothing; HTTP 500 exits 2 and writes nothing; `save_pack` round-trips bytes exactly.
 
 **Done when:** `uv run daily-review pull-only` against the tunnel prints the health line and exits 0; with the tunnel closed it prints "tunnel down" and exits 2.
+
+**Docs:** ARCHITECTURE (components, dependency graph, failure table), RUNBOOK (key needed by `run` only, exit 2 messages, log format), TESTING (fakes, client, store, health and `pull-only` cases), PRD R-CFG-1, DECISIONS (T-23 to T-28, Q13, Q14), OPEN-QUESTIONS, README, `.env.example`, this file (status).
+
+**Progress (2026-10-08 UTC):** tasks 1 to 3 are in the working tree. Q13 and Q14 were ruled before any code, and the choices the tasks needed were put to Jason as T-26 (client details), T-27 (health body, and the health check living in `pull.py` as `check_health`) and T-28 (store root, `save_pack` scope, logging) and accepted. `make check` gives lint clean and 147 tests passed (72 before this pass). An adversarial review (four lenses, each finding put to a skeptic) confirmed ten defects, all fixed in this pass with tests: the tunnel-down test chain did not match real httpx; httpx logged the full URL; a body that failed to decode escaped as a traceback; pass 3b did not list the key check; the logging setup was untested; a malformed base URL was reported as exit 2; a deeply nested health body crashed; the tunnel hint, the error-body cut and the one-line settings error were untested or wrong. Each fix was checked by a mutation run on a scratch copy: all thirteen mutations now fail the suite. T-25, T-26 and T-28 were amended on Jason's ruling. The key is now optional in `Settings`; `config.require_api_key` is written and tested and is wired into `run` in pass 3b. `save_pack` is written and tested but `pull-only` saves nothing yet; pass 1b wires it in. Live check, tunnel closed (no `.env` on this machine, so no key either): `uv run daily-review pull-only` printed `health check failed: tunnel down: connection refused at localhost:3300` and the RUNBOOK hint, exited 2, and wrote nothing. The pass stays `in progress` until the same command, run with the tunnel open, prints the `health:` line and exits 0.
 
 ### Pass 1b — catalogue, manifest, retry (not started)
 
@@ -287,9 +294,9 @@ Tasks:
 
 1. [ ] `prompts/system.md` written from [AGENT-DESIGN.md](AGENT-DESIGN.md) sections 1, 4, 5 and 6.
 2. [ ] `agent.py`: build the two system blocks (prompt, then the vendored spec with `cache_control`, T-12); build the first user message in the order of AGENT-DESIGN section 2 (date and window, `derived.json`, app findings, past reports oldest first, watch list, closing instruction; `container_upload` blocks come in 5b); call `messages.create` with `output_config.format` and the agent schema, `max_tokens` from settings, no `thinking` parameter (T-13); handle `end_turn`, `max_tokens`, `refusal` (T-08); sum usage across requests. Messages are append-only (T-14).
-3. [ ] `cli.py` `run`: health, pull, derive, agent, validate, add `run`, render, save. `run --date YYYY-MM-DD` skips the pull and loads that date's pack (T-20). `render` re-renders a saved report. Exit codes per T-09.
+3. [ ] `cli.py` `run`: check the key first with `config.require_api_key` (Q14: exit 1 naming `ANTHROPIC_API_KEY`, before the health check), then health, pull, derive, agent, validate, add `run`, render, save. `run --date YYYY-MM-DD` skips the pull and loads that date's pack (T-20). `render` re-renders a saved report. Exit codes per T-09.
 
-Tests: `FakeMessages` with scripted responses; system blocks are byte-identical across two builds in one run and contain no date, run id or model name; `cache_control` is on the last system block only; the first message holds the parts in order; `end_turn` with valid JSON yields a report with summed usage; `refusal` and `max_tokens` exit 3 and leave the pack; `output_config.format` is sent on every request; `run --date` with a saved pack makes no pull call; end-to-end `run` with fakes saves `.json` and `.md` and exits 0.
+Tests: `run` without a key exits 1 naming `ANTHROPIC_API_KEY` and makes no API call (Q14); `FakeMessages` with scripted responses; system blocks are byte-identical across two builds in one run and contain no date, run id or model name; `cache_control` is on the last system block only; the first message holds the parts in order; `end_turn` with valid JSON yields a report with summed usage; `refusal` and `max_tokens` exit 3 and leave the pack; `output_config.format` is sent on every request; `run --date` with a saved pack makes no pull call; end-to-end `run` with fakes saves `.json` and `.md` and exits 0.
 
 **Done when:** tests pass; an end-to-end `run` with fakes produces a report that validates.
 
