@@ -4,7 +4,7 @@ A read-only script that runs once a day. It pulls the last day of data from the 
 
 The review is for Jason's own reading. It is also the first step toward agents that understand the on-chain landscape before they act.
 
-**Status:** scaffold. Pass 0a is done (2026-10-07): the package, settings, CLI stubs and `make` targets are in place, and the commands parse but do nothing yet. Pass 0b, CI on GitHub Actions, is next in [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md). Open questions are in [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md).
+**Status:** scaffold. Pass 0a is done (2026-10-07): the package, settings, CLI stubs and `make` targets are in place, and the commands parse but do nothing yet. Pass 0b, CI on GitHub Actions, is in progress in [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md): the workflow and its tests are in place, and it waits on its first green run on GitHub. Open questions are in [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md).
 
 ## How one run works
 
@@ -78,11 +78,12 @@ liquidity_read_agent/
   pyproject.toml        # package, dependencies, the daily-review command, ruff and pytest
   uv.lock               # pinned versions; committed
   .env.example
+  .github/workflows/check.yml   # CI: uv sync --locked, then make check, on every push and PR
   docs/                 # all project documents
   src/daily_review/     # the package (see docs/ARCHITECTURE.md)
   prompts/system.md     # the agent's system prompt
   vendor/API-SPEC.md    # copied from the app repo, with its date
-  tests/
+  tests/                # conftest.py cuts off the network for every test
   data/                 # gitignored: raw data packs by date
   reports/              # gitignored: YYYY-MM-DD.json and .md
   state/                # gitignored: watchlist.json

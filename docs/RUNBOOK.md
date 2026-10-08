@@ -1,7 +1,7 @@
 # Runbook — Blockford Daily Review
 
 **Version:** 0.1 (2026-10-07)
-**Status:** draft. Commands confirmed in pass 0a on 2026-10-07: every `make` target runs; `run`, `pull-only` and `render` parse and exit 0 without doing anything until their passes land. Port and base path are final (question 2 ruled 2026-10-07).
+**Status:** draft. Commands confirmed in pass 0a on 2026-10-07: every `make` target runs; `run`, `pull-only` and `render` parse and exit 0 without doing anything until their passes land. Port and base path are final (question 2 ruled 2026-10-07). CI added in pass 0b on 2026-10-07 (section 10).
 
 ## 1. Before the first run
 
@@ -154,3 +154,28 @@ Measured in build step 3 and recorded in [AGENT-DESIGN.md](AGENT-DESIGN.md) sect
 ## 9. Logs
 
 The run logs to stderr: the health body's `status`, `corridorsMonitored` and `updatedAt` first, so the log shows which deployment answered; each API call with path, status, bytes; each Messages API request with stop reason and usage; each tool call with path, query, status, bytes, cut or not; each upload and delete. No log line contains the API key or a request body.
+
+## 10. CI
+
+GitHub Actions runs `.github/workflows/check.yml` on every push and every pull request, on any branch. It is the same gate as on Jason's machine, so a change that passes `make check` locally passes here too.
+
+What runs, in order, on `ubuntu-latest` with Python 3.11 (the floor, Q15):
+
+1. Check out the commit, with no saved credentials.
+2. Install `uv` (`astral-sh/setup-uv@v7`), with its cache on.
+3. `uv sync --locked`. Fails if `uv.lock` is out of step with `pyproject.toml`.
+4. `make check`: ruff, then pytest.
+
+The workflow has `contents: read` only and is given no secrets. No step can reach the Claude API with a key or the Blockford API, which only localhost can reach. The test suite cuts off the network as well (TESTING section 1).
+
+Reading a red check:
+
+| Red step | Cause | Fix |
+|---|---|---|
+| `uv sync --locked` | `pyproject.toml` changed without `uv.lock` | `uv lock` locally (or `uv add`, which writes both), then commit `uv.lock` |
+| `Lint, then test`, ruff output | A lint error, or a function over complexity 10 | `make lint` locally; split the function rather than raising the limit |
+| `Lint, then test`, a test fails | A behaviour broke | `make test` locally; the test name says the requirement |
+| A test fails with `tests never touch the network (T-21)` | A test reached a socket instead of a fake | Give the test the fake for that I/O module (TESTING section 3) |
+| `test_this_checkout_tracks_nothing_it_should_not` | A file under `data/`, `reports/` or `state/`, an `.env` file, or an image in `docs/` was committed | `git rm --cached <path>`, and commit. If it was `.env`, rotate the key: it is in the history. |
+
+Branch protection on `main`, so the check must pass before a merge, is set by Jason in the GitHub repository settings (Settings, Branches). It is not held in the repo. Pass 0b task 6 tracks it.

@@ -78,6 +78,9 @@ Follow [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md). The spec's seven steps are mile
 | System prompt | `prompts/system.md` |
 | Vendored API spec | `vendor/API-SPEC.md` (copy header on line 1; re-copy from the app repo, never edit) |
 | Tests and fixtures | `tests/`, `tests/fixtures/` |
+| Network guard for every test | `tests/conftest.py` (T-21, Q16) |
+| Repository rules as tests | `tests/test_repo_rules.py` (Q17) |
+| CI workflow | `.github/workflows/check.yml`: `uv sync --locked`, then `make check`, on every push and pull request, Python 3.11 (RUNBOOK section 10) |
 | Raw data packs | `data/YYYY-MM-DD/` |
 | Reports | `reports/YYYY-MM-DD.json` and `.md` |
 | Watch list | `state/watchlist.json` |
@@ -98,6 +101,8 @@ make help       # list the targets
 ```
 
 To reuse a saved pack after a failed run: `uv run daily-review run --date YYYY-MM-DD`.
+
+GitHub Actions runs the same `make check` on every push and pull request. A red check on GitHub is a red check here: fix it locally first.
 
 Tests never touch the network. Tests never call the Claude API. Every I/O module has a fake (T-21).
 
