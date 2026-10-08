@@ -50,10 +50,10 @@ From [ENGINEERING-PRINCIPLES.md](ENGINEERING-PRINCIPLES.md): maximize cohesion, 
 |---|---|---|---|
 | `cli.py` | Parse the command, wire the modules, run the eight steps in order (or from a saved pack with `--date`), map outcomes to exit codes. | all below | none of its own |
 | `config.py` | Load and validate settings from the environment into one typed `Settings` value. | — | env, `.env` |
-| `client.py` | One HTTP GET function against the base URL with a timeout. Returns status, headers, body, or an error. It has no POST method. | `config` | HTTP |
-| `pull.py` | The endpoint catalogue (spec section 5) and the pull: call each endpoint through `client`, keep the raw body, build the failure records and the manifest flags (truncated, coverage, total versus rows). Returns a `DataPack`. | `client` | none |
+| `client.py` | One HTTP GET function against the base URL with a timeout (30 s by default). Returns a `Response` (status, headers, body bytes) or a failure value: `HttpError` (non-2xx; redirects are not followed), `TunnelDown` (connection refused or reset, T-18), `Timeout`, or `Unreachable` (any other transport error, or a body that does not decode). It never raises for these. It has no POST method (T-26). | — (takes the base URL) | HTTP |
+| `pull.py` | The health check (`check_health`: GET `/health`, the three T-19 fields, or why not, T-27), the endpoint catalogue (spec section 5) and the pull: call each endpoint through `client`, keep the raw body, build the failure records and the manifest flags (truncated, coverage, total versus rows). Returns a `DataPack`. | `client` | none |
 | `derive.py` | Compute `Derived` from a `DataPack` and the previous `Derived` (or none, on the first run). One function per statistic in spec section 6. | — | none |
-| `store.py` | Paths by date. Save and load the data pack, `derived.json`, reports, and the watch list. List the last N reports. | `config` | filesystem |
+| `store.py` | Paths by date under a root directory it is given (T-28). Save and load the data pack, `derived.json`, reports, and the watch list. List the last N reports. | — (takes the root) | filesystem |
 | `uploads.py` | Upload the data pack files to the Files API, return their ids, delete them at the end. | `config` | Files API |
 | `tools.py` | The `api_get` tool: its JSON schema, the allowlist built from the API spec, the call cap, the result size cap, and the function that executes one call through `client`. | `client`, `config` | HTTP (through `client`) |
 | `agent.py` | The loop: build the system prompt and the first message, call the Messages API, dispatch tool calls, handle every stop reason, collect usage, return the parsed report and run facts. | `tools`, `schema`, `config` | Messages API |
@@ -78,19 +78,18 @@ flowchart TD
     cli --> uploads
     cli --> agent
     cli --> render
+    cli --> client
     pull --> client
     tools --> client
     agent --> tools
     agent --> schema
     render --> schema
-    client --> config
-    store --> config
     uploads --> config
     tools --> config
     agent --> config
 ```
 
-Arrows point from the module that imports to the module it imports. No cycles. `derive`, `schema`, and `render` import nothing from the package except each other where shown.
+Arrows point from the module that imports to the module it imports. No cycles. `derive`, `schema`, and `render` import nothing from the package except each other where shown. `client` and `store` import nothing from the package: `cli` hands `client` the base URL and `store` the root directory, so neither needs `Settings` (T-28). `cli` imports `client` to build the real one and to tell "tunnel down" from other health failures.
 
 ## 4. One run, in sequence
 
@@ -103,6 +102,7 @@ sequenceDiagram
     participant AG as agent.py
     participant MSG as Messages API
 
+    CLI->>CLI: run only: require ANTHROPIC_API_KEY, else exit 1 (Q14)
     CLI->>API: GET /health
     alt unreachable
         CLI-->>CLI: clear error, exit non-zero, no report
@@ -133,7 +133,7 @@ sequenceDiagram
     CLI->>FL: delete uploaded files
 ```
 
-Step numbers match spec section 4. The health check is the only step that stops the run before anything is written. On success it logs the body's `status`, `corridorsMonitored` and `updatedAt`, the only trace of which deployment answered (T-19). With `run --date`, the pull is skipped and the saved pack for that date is loaded instead (T-20).
+Step numbers match spec section 4. The health check is the only step that stops the run before anything is written. On success it logs the body's `status`, `corridorsMonitored` and `updatedAt`, the only trace of which deployment answered (T-19). A body with `status` `degraded` or `down` is still reachable; the run goes on. A 200 whose body is not a JSON object stops the run like an unreachable API, since the log could not say which deployment answered (T-27). With `run --date`, the pull is skipped and the saved pack for that date is loaded instead (T-20).
 
 ## 5. The agent loop
 
@@ -294,8 +294,10 @@ flowchart TD
 | Condition | Behavior | Exit code (T-09) |
 |---|---|---|
 | Bad or missing setting | Stop before any call. Name the setting. | 1 |
-| Usage error: unknown command, missing argument, bad `--date` | Stop before any call. Name the problem. | 1 (T-23, proposed) |
-| `/health` unreachable (connection refused: "tunnel down") | Stop. No report. Message names the tunnel. | 2 |
+| Missing `ANTHROPIC_API_KEY` on `run` | Stop before any call. Name the setting. `pull-only` and `render` do not need the key (Q14). | 1 |
+| Usage error: unknown command, missing argument, bad `--date` | Stop before any call. Name the problem. | 1 (T-23) |
+| `/health` unreachable: connection refused or reset ("tunnel down"), timeout, other transport error, or an HTTP error | Stop. Nothing written. No report. On "tunnel down" the message names the tunnel and points to RUNBOOK section 1.1. | 2 |
+| `/health` answers 200 with a body that is not a JSON object | Stop. Nothing written. The message says to check the port in `BLOCKFORD_API_BASE_URL` (T-27). | 2 |
 | One or more endpoints fail | Continue. Record. Report written. | 0 |
 | Claude call error, `refusal`, `max_tokens`, or invalid JSON | Keep data pack. No report. | 3 |
 | Tool cap reached | Continue. Agent told. Report records it. | 0 |

@@ -4,16 +4,27 @@ from pathlib import Path
 
 import pytest
 
-from daily_review.config import Settings, SettingsError, load_settings, read_environment
+from daily_review.config import (
+    Settings,
+    SettingsError,
+    load_settings,
+    read_environment,
+    require_api_key,
+)
 
 KEY = {"ANTHROPIC_API_KEY": "sk-ant-test-key"}
 INTEGER_SETTINGS = ["MAX_TOOL_CALLS", "MAX_OUTPUT_TOKENS", "HISTORY_DAYS"]
 
 
-def test_missing_api_key_fails_and_names_the_setting():
-    """R-CFG-2: a missing key stops the run before any call, naming the setting."""
+def test_settings_load_without_a_key():
+    """Q14: pull-only and render never call Claude, so the key is optional in Settings."""
+    assert load_settings({}).anthropic_api_key is None
+
+
+def test_missing_api_key_fails_where_it_is_required_and_names_the_setting():
+    """R-CFG-2, Q14: run asks for the key before any call; the error names the setting."""
     with pytest.raises(SettingsError) as caught:
-        load_settings({})
+        require_api_key(load_settings({}))
     assert caught.value.names == ("ANTHROPIC_API_KEY",)
     assert "ANTHROPIC_API_KEY" in str(caught.value)
 
@@ -21,8 +32,14 @@ def test_missing_api_key_fails_and_names_the_setting():
 def test_blank_api_key_counts_as_missing():
     """R-CFG-2: .env.example ships the key blank; blank must not pass as a key."""
     with pytest.raises(SettingsError) as caught:
-        load_settings({"ANTHROPIC_API_KEY": "  "})
+        require_api_key(load_settings({"ANTHROPIC_API_KEY": "  "}))
     assert caught.value.names == ("ANTHROPIC_API_KEY",)
+
+
+def test_a_present_key_is_returned_as_a_secret():
+    key = require_api_key(load_settings(KEY))
+    assert key.get_secret_value() == "sk-ant-test-key"
+    assert "sk-ant-test-key" not in repr(key)
 
 
 def test_defaults():
@@ -74,14 +91,46 @@ def test_malformed_integer_fails_and_names_the_setting(name, bad):
 def test_every_bad_setting_is_named_at_once():
     with pytest.raises(SettingsError) as caught:
         load_settings({"MAX_TOOL_CALLS": "x", "HISTORY_DAYS": "0"})
-    assert set(caught.value.names) == {"ANTHROPIC_API_KEY", "MAX_TOOL_CALLS", "HISTORY_DAYS"}
+    assert set(caught.value.names) == {"MAX_TOOL_CALLS", "HISTORY_DAYS"}
 
 
-@pytest.mark.parametrize("bad", ["localhost:3300/corridor-scout/api", "ftp://localhost/api"])
-def test_base_url_without_http_scheme_fails_and_names_the_setting(bad):
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "localhost:3300/corridor-scout/api",
+        "ftp://localhost/api",
+        "http://",
+        "http:///corridor-scout/api",
+        "http://[::1",
+        "http://localhost:330000/corridor-scout/api",
+        "http://localhost:abc/corridor-scout/api",
+        "http://localhost:0/corridor-scout/api",
+    ],
+)
+def test_a_base_url_that_is_not_a_usable_http_url_fails_and_names_the_setting(bad):
+    """T-25 as amended: a scheme, a host, and a port from 1 to 65535 if one is given."""
     with pytest.raises(SettingsError) as caught:
         load_settings({**KEY, "BLOCKFORD_API_BASE_URL": bad})
     assert caught.value.names == ("BLOCKFORD_API_BASE_URL",)
+
+
+@pytest.mark.parametrize("good", ["https://example.com", "http://127.0.0.1:3300/api/"])
+def test_a_usable_base_url_is_accepted(good):
+    assert load_settings({"BLOCKFORD_API_BASE_URL": good}).blockford_api_base_url == good
+
+
+def test_a_bad_base_url_is_never_echoed():
+    """T-25: values are never echoed; a URL can hold a password."""
+    with pytest.raises(SettingsError) as caught:
+        load_settings({"BLOCKFORD_API_BASE_URL": "http://user:secret@localhost:99999/api"})
+    assert "secret" not in str(caught.value)
+
+
+def test_the_settings_error_is_one_line():
+    """RUNBOOK section 9: one log line per event, so the names stay on the timestamped line."""
+    with pytest.raises(SettingsError) as caught:
+        load_settings({"MAX_TOOL_CALLS": "x", "HISTORY_DAYS": "0"})
+    assert "\n" not in str(caught.value)
 
 
 def test_api_key_never_appears_when_settings_are_printed():

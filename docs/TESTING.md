@@ -33,10 +33,10 @@ The first four run in `make test`. The fifth is the exit check of each milestone
 
 | Fake | Replaces | Behavior |
 |---|---|---|
-| `FakeClient` | `client.get` | A dict from `(path, params)` to a canned result: status, body bytes, or an exception. Records every call. Has no POST method, like the real one. |
+| `FakeClient` (`tests/fakes.py`) | `client.get` | A dict from `(path, params)` to a canned client result: a `Response`, or a failure value (`HttpError`, `TunnelDown`, `Timeout`, `Unreachable`). Records every call with its timeout. Has no POST method, like the real one. Tests of `client.py` itself use httpx's `MockTransport`, so no socket is opened. |
 | `FakeMessages` | `client.messages.create` | A scripted list of responses returned in order. Each is a real SDK response type built from a dict, so block types and `stop_reason` are read the same way as in production. Records every request so tests can assert on `messages`, `tools`, `system`, `output_config`. |
 | `FakeFiles` | `client.files.upload` and `delete` | Returns ids; records uploads and deletes. Can fail delete on demand. |
-| temp dirs | `data/`, `reports/`, `state/` | `tmp_path` from pytest, passed through `Settings`. |
+| temp dirs | `data/`, `reports/`, `state/` | `tmp_path` from pytest, passed to `store.py` as its root directory (T-28). |
 
 ## 4. Required cases
 
@@ -44,10 +44,10 @@ Grouped by module. Each line is a test or a small group of tests.
 
 ### `config.py`
 
-- Missing `ANTHROPIC_API_KEY` fails before any call and names the setting (R-CFG-2). A blank key counts as missing.
+- Settings load without `ANTHROPIC_API_KEY` (Q14). `require_api_key`, which `run` calls first, fails on a missing key and names the setting (R-CFG-2). A blank key counts as missing.
 - Defaults: `MODEL`, `MAX_TOOL_CALLS`, `MAX_OUTPUT_TOKENS`, `HISTORY_DAYS` (R-CFG-1).
 - A malformed integer setting (not a whole number, or below 1) fails and names the setting; every bad setting is named in one error (R-CFG-2, T-25).
-- A base URL without `http://` or `https://` fails and names the setting (T-25).
+- A base URL without `http://` or `https://`, without a host, with a port that is not 1 to 65535, or that cannot be parsed fails and names the setting, without echoing the value; the settings error is one line (T-25).
 - `.env` is read; the real environment wins over it; a blank environment value does not hide a `.env` value; a missing `.env` is not an error (T-25).
 - The key never appears when `Settings` is printed (ARCHITECTURE section 7).
 
@@ -61,8 +61,14 @@ Grouped by module. Each line is a test or a small group of tests.
 - `truncated`, coverage not `ok`, `total` over rows: each recorded in the manifest (R-PULL-4).
 - `flow_history` with `truncated: true`: exactly one re-call with `limit=5000`; both bodies saved; the manifest records both (R-PULL-6).
 - Fields absent from a response yield `null` in the manifest, not `false` (R-PULL-4).
-- The client has no way to send a non-GET request (R-PULL-5, D-03).
+- The client has no way to send a non-GET request: `get` is its only public method (R-PULL-5, D-03).
+- The client keeps a 2xx body byte for byte; a non-2xx is an `HttpError` with status and body; a 3xx is not followed; the timeout defaults to 30 s and can be set per call (T-26).
+- The faked connection errors are built the way httpx 0.28 and httpcore 1.0 really chain them: the OS error only in a suppressed `__context__`. A test checks that shape, so a client that stops following `__context__` fails.
+- A body that does not decode by its `Content-Encoding` is `Unreachable`, not a raised error; an error body is cut to 300 characters; an empty one gives `HTTP <status>` (T-26).
+- Connection refused and connection reset are `TunnelDown` naming host and port; a timeout is `Timeout`; a failed name lookup is `Unreachable` and never says "tunnel down" (T-18, T-26).
+- Health (`pull.check_health`): one GET of `/health`; the spec example gives the three T-19 fields; `degraded` and `down` still count as reachable; an absent field shows as `missing` and a null as `null`; a 200 body that is not a JSON object is `NotJson`; a failed call is passed through (T-27).
 - Health unreachable: nothing written, exit 2, message says "tunnel down" on connection refused (R-RUN-4, T-18).
+- `store.py`: pack paths by date; `save_pack` round-trips bytes exactly; a second save on one date overwrites; a name that is not a plain file name is refused (R-PULL-2, T-28).
 
 ### `derive.py`
 
@@ -140,7 +146,9 @@ Grouped by module. Each line is a test or a small group of tests.
 - `run`, `run --date YYYY-MM-DD`, `pull-only` and `render <path>` parse; `--help` lists the three commands and `--date` (R-RUN-6, R-RUN-7).
 - A bad `--date`, an unknown command, or a missing argument exits 1, not 2 (T-23).
 - `run` end to end with fakes: report `.json` and `.md` saved, watch list written, uploads deleted, exit 0 (R-RUN-3, R-RUN-5).
-- `pull-only` writes the pack and `derived.json`, calls no Messages API (R-RUN-6).
+- Logging (T-28): with a bare root logger, as in a real run, the health line reaches stderr as `<UTC time> INFO health: ...` and stdout stays empty; a bad setting is one timestamped line; no `httpx` record reaches the log. `caplog` alone cannot show this, since it captures records whatever the handlers are. The tunnel hint appears on "tunnel down" only.
+- `pull-only` in pass 1a: health reachable logs the three fields and exits 0; it needs no key (Q14); connection refused exits 2 with "tunnel down" and writes nothing; an HTTP 500, a timeout, an unreachable host and a non-JSON body each exit 2 and write nothing; a bad setting exits 1 before any call (R-RUN-4, R-RUN-8, T-09).
+- `pull-only` writes the pack and `derived.json`, calls no Messages API (R-RUN-6). From pass 2a.
 - `run --date` with a saved pack makes no pull call and proceeds from the pack (R-RUN-7).
 - The health body's `status`, `corridorsMonitored` and `updatedAt` appear in the log (R-RUN-8).
 - `render` re-renders a saved report to the same markdown as the golden file.

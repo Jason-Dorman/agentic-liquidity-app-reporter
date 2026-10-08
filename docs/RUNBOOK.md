@@ -1,7 +1,7 @@
 # Runbook — Blockford Daily Review
 
 **Version:** 0.1 (2026-10-07)
-**Status:** draft. Commands confirmed in pass 0a on 2026-10-07: every `make` target runs; `run`, `pull-only` and `render` parse and exit 0 without doing anything until their passes land. Port and base path are final (question 2 ruled 2026-10-07). CI added in pass 0b on 2026-10-07 (section 10).
+**Status:** draft. Commands confirmed in pass 0a on 2026-10-07: every `make` target runs. From pass 1a (2026-10-08) `pull-only` runs the health check; `run` and `render` parse and exit 0 without doing anything until their passes land. Port and base path are final (question 2 ruled 2026-10-07). CI added in pass 0b on 2026-10-07 (section 10).
 
 ## 1. Before the first run
 
@@ -15,7 +15,7 @@
 Setup:
 
 ```bash
-cp .env.example .env     # fill in ANTHROPIC_API_KEY; BLOCKFORD_API_BASE_URL is pre-filled
+cp .env.example .env     # fill in ANTHROPIC_API_KEY (needed by run only); BLOCKFORD_API_BASE_URL is pre-filled
 make setup               # uv sync
 make check               # uv run ruff check src tests, then uv run pytest
 ```
@@ -53,21 +53,21 @@ All read by `config.py` from the environment, with `.env` loaded first.
 
 | Setting | Meaning | Default |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Claude API key. | none, required |
+| `ANTHROPIC_API_KEY` | Claude API key. | none. Required by `run` only; `pull-only` and `render` run without it (Q14). |
 | `BLOCKFORD_API_BASE_URL` | The port-forward address plus `/corridor-scout/api`. | `http://localhost:3300/corridor-scout/api` |
 | `MODEL` | The agent's model. | `claude-sonnet-5-5` |
 | `MAX_TOOL_CALLS` | `api_get` calls allowed per run. | `15` |
 | `MAX_OUTPUT_TOKENS` | `max_tokens` per Messages API response. | `16000` |
 | `HISTORY_DAYS` | Days of history pulled and past reports fed in. | `7` |
 
-A missing or malformed setting stops the run before any API call and names the setting. Exit 1. One message names every bad setting at once and never prints a value.
+A malformed setting, or a missing key on `run`, stops the command before any API call and names the setting. Exit 1. One message names every bad setting at once and never prints a value.
 
-How values are read (T-25, proposed, question 13):
+How values are read (T-25):
 
 - The real environment wins over `.env`.
 - A blank value counts as not set. A blank `ANTHROPIC_API_KEY` is missing; a blank optional setting takes its default.
 - `MAX_TOOL_CALLS`, `MAX_OUTPUT_TOKENS` and `HISTORY_DAYS` are whole numbers of 1 or more.
-- `BLOCKFORD_API_BASE_URL` starts with `http://` or `https://`.
+- `BLOCKFORD_API_BASE_URL` starts with `http://` or `https://`, has a host, and, if it names a port, a port from 1 to 65535. Anything else is a bad setting (exit 1), not an unreachable API.
 
 ## 3. Daily routine
 
@@ -118,15 +118,22 @@ Running twice on one date overwrites that date's files. The previous-run compari
 | Code | Meaning | What to do |
 |---|---|---|
 | 0 | Report written. Endpoint failures, if any, are in the data quality section. | Read the report. |
-| 1 | Bad or missing setting, or a usage error: unknown command, missing argument, or a `--date` that is not a real `YYYY-MM-DD` date (T-23, proposed). | Fix `.env`, or the command line. The message names the problem. |
-| 2 | `/health` unreachable. Nothing written. | Check the port-forward and the app. Run again. |
+| 1 | Bad or missing setting, or a usage error: unknown command, missing argument, or a `--date` that is not a real `YYYY-MM-DD` date (T-23). | Fix `.env`, or the command line. The message names the problem. |
+| 2 | `/health` unreachable, or it answered with something that is not the API. Nothing written. | Read the message: "tunnel down" means reopen the port-forward (section 1.1); an HTTP status, a timeout or "not a JSON object" means check the app and the port. Run again. |
 | 3 | Claude call failed, refused, hit `max_tokens`, or the JSON did not validate. Data pack kept. | Read the log. Run again. The pack for the date is already saved, so `run --date YYYY-MM-DD` reuses it without pulling again. |
 
 ## 6. Troubleshooting
 
 | Symptom | Likely cause | Check |
 |---|---|---|
-| Exit 2 at once, "tunnel down" | Tunnel not open or closed from inactivity, or wrong port in `BLOCKFORD_API_BASE_URL` | Reopen the tunnel (section 1.1); `curl` the health path by hand |
+| Exit 2 at once, `health check failed: tunnel down: connection refused at localhost:3300` | Tunnel not open or closed from inactivity, or wrong port in `BLOCKFORD_API_BASE_URL` | Reopen the tunnel (section 1.1); `curl` the health path by hand |
+| Exit 2, `health check failed: HTTP <status>: ...` | The app answered with an error, or a 3xx (redirects are not followed, T-26) | The status and the start of the body are in the message; `curl` the health path by hand |
+| Exit 2, `health check failed: timeout: no answer from /health within 30 s` | The app is slow or hung behind an open tunnel | Check the app; run again |
+| Exit 2, `health check failed: unreachable: ...` | Not the tunnel: for example a host name in `BLOCKFORD_API_BASE_URL` that does not resolve | The base URL in `.env` |
+| Exit 2, `health check failed: unreachable: the body from /health could not be decoded: ...` | The answer's `Content-Encoding` does not match its bytes: something between the script and the app mangled it | `curl -sv` the health path by hand and read the headers |
+| Exit 1, `Bad settings. ... BLOCKFORD_API_BASE_URL: ...` | The base URL has no host, or a port that is not a number from 1 to 65535 | The base URL in `.env` |
+| Exit 2, `health check failed: health body is not a JSON object` | Something other than the API answered on that port | The port in `BLOCKFORD_API_BASE_URL`: 3300 is the tunnel, 3000 is the local dev stack |
+| `health:` line shows `missing` or `null` for a field | `/health` answered without that field, or with null. The run goes on (T-27). | Compare with the `GET /api/health` section of `vendor/API-SPEC.md`; tell Jason if the API changed |
 | Failure records or `api_get` results saying "tunnel down" mid-run | The tunnel closed during the run | Reopen it and run again |
 | `flow_history` failure record with 400 | `hours` or `limit` not an integer in range (`hours` 1 to 720, `limit` 1 to 5000) | The catalogue value in `pull.py`; the 400 body states the range |
 | Many failure records with the same HTTP status | App restarted mid-run | Run again |
@@ -153,7 +160,15 @@ Measured in build step 3 and recorded in [AGENT-DESIGN.md](AGENT-DESIGN.md) sect
 
 ## 9. Logs
 
-The run logs to stderr: the health body's `status`, `corridorsMonitored` and `updatedAt` first, so the log shows which deployment answered; each API call with path, status, bytes; each Messages API request with stop reason and usage; each tool call with path, query, status, bytes, cut or not; each upload and delete. No log line contains the API key or a request body.
+The run logs to stderr with the standard `logging` module, one line per event, each starting with a UTC timestamp and the level (T-28). The health line comes first, so the log shows which deployment answered:
+
+```
+2026-10-08T06:00:01Z INFO health: status=operational corridorsMonitored=47 updatedAt=2026-10-08T05:59:30Z
+```
+
+The `httpx` library's own request lines are held back (its logger is set to WARNING), since they print the full URL. A bad-settings message is one line that names every bad setting.
+
+After the health line: each API call with path, status, bytes; each Messages API request with stop reason and usage; each tool call with path, query, status, bytes, cut or not; each upload and delete. No log line contains the API key or a request body.
 
 ## 10. CI
 
@@ -178,4 +193,4 @@ Reading a red check:
 | A test fails with `tests never touch the network (T-21)` | A test reached a socket instead of a fake | Give the test the fake for that I/O module (TESTING section 3) |
 | `test_this_checkout_tracks_nothing_it_should_not` | A file under `data/`, `reports/` or `state/`, an `.env` file, or an image in `docs/` was committed | `git rm --cached <path>`, and commit. If it was `.env`, rotate the key: it is in the history. |
 
-Branch protection on `main`, so the check must pass before a merge, is set by Jason in the GitHub repository settings (Settings, Branches). It is not held in the repo. Pass 0b task 6 tracks it.
+Branch protection on `main`, so the check must pass before a merge, is set by Jason in the GitHub repository settings (Settings, Branches). It is not held in the repo. It is not set yet: Jason waived it for pass 0b on 2026-10-08, and pass 0b task 6 keeps it open. Until it is set, a red check does not stop a merge; read the check before merging.
