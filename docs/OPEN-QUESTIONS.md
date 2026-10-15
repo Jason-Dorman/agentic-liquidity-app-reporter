@@ -2,7 +2,7 @@
 
 Questions that need Jason's ruling. Nothing that depends on a question is coded before it is answered. Answers are recorded in [DECISIONS.md](DECISIONS.md) and the question is marked closed here, with the date.
 
-**Questions 1 to 12 were closed on 2026-10-07.** Questions 13 and 14 were raised in pass 0a and closed on 2026-10-08. Questions 15 to 18 shaped pass 0b (CI) and were closed on 2026-10-07. Question 19 was found in pass 0b and is open. New questions are appended to the second table with the next number and status `open`.
+**Questions 1 to 12 were closed on 2026-10-07.** Questions 13 and 14 were raised in pass 0a and closed on 2026-10-08. Questions 15 to 18 shaped pass 0b (CI) and were closed on 2026-10-07. Question 19 was found in pass 0b and is open. Questions 20 to 26 shaped pass 1b and were closed on 2026-10-08. Question 27 was found in the first live pull and is open. Question 28 was found in pass 1b and is open. New questions are appended to the second table with the next number and status `open`.
 
 Statuses: `open`, `closed`.
 
@@ -34,6 +34,15 @@ Statuses: `open`, `closed`.
 | Q17 | **Where the repository rules run.** As pytest tests, so `make check` runs them locally and in CI, or as a CI-only step? The rules: no tracked `.env`; nothing under `data/`, `reports/`, `state/`; no image files in `docs/`. | A CI-only check catches a breach after the push; a test catches it before the commit. | Pass 0b | As tests. `make check` stays the one gate, unchanged. | closed |
 | Q18 | **Pinning the GitHub actions.** By major version tag (`actions/checkout@v5`) or by full commit SHA with the version in a comment? | A tag can be moved by the action's owner; a SHA cannot. The workflow holds no secrets and only reads the repo. | Pass 0b | Major version tags. The workflow has read-only permissions and no secrets, so a moved tag has little to reach. | closed |
 | Q19 | **Anchor the run-output ignores.** `.gitignore` has `data/`, `reports/` and `state/` without a leading `/`, so git ignores a directory of that name at any depth. `git check-ignore` shows `tests/fixtures/reports/sample.json`, the golden fixture TESTING section 5 plans, is ignored. Change them to `/data/`, `/reports/`, `/state/`? | The golden report fixture and its markdown would never be committed, and CI would fail on a missing file. `tests/test_repo_rules.py` already checks the top level only. | Pass 3a (fixtures under `tests/fixtures/reports/`) | Yes: anchor all three to the repository root. | open |
+| Q20 | **Start pass 1b before 1a is closed?** Pass 1a's code is done; its last item is the live `pull-only` check with the tunnel open, and the tunnel was closed on 2026-10-08. | The build order says no pass starts before the one before it is done. | Pass 1b | Start 1b now and close both in one tunnel session. | closed |
+| Q21 | **How the manifest finds its flags.** `truncated` flags and coverage legs sit at different depths per endpoint, and some `coverage` blocks are not legs. Declared paths per catalogue row, or a generic walk? Also flag a page whose rows equal its `limit`? | R-PULL-4. Four 5000-row pulls carry no truncation flag. | Pass 1b | Declared paths, plus `rowsAtLimit` (T-29). | closed |
+| Q22 | **A re-pull on the same date.** `save_pack` overwrites by name, so an old raw file can stay beside a new failure record. | The pack must be one pull. | Pass 1b | Clear `raw/`, `failures/` and `manifest.json` first (T-30). | closed |
+| Q23 | **`pull-only` exit code after calls fail mid-pull.** | A tunnel that closes mid-pull turns every later call into "tunnel down". | Pass 1b | Exit 2 if any call was "tunnel down", else 0 (T-31). | closed |
+| Q24 | **Calls whose page does not cover the week.** The first live pull (2026-10-08) with `hours=168`: `bsh` at `limit=5000` covers about 38 hours (its own `truncation.truncated` is true), `exceedances` about 24.5 hours, `issuer_flows` about 11 hours, `spread_history` about 5.8 days. `anomalies_open` has `total` 5332 against a 500-row page, the maximum. Change the catalogue in pass 1b? | Spec section 5's calls cannot return a full week for four endpoints. | Pass 1b | Pull as specced, record the cuts, decide the fix separately (Q27). | closed |
+| Q25 | **Liquidity coverage legs.** The live bodies have six legs under `coverage.legs` (`fits` is new); the vendored spec names five. | A fixed list would miss a leg the API adds. | Pass 1b | Every key under `coverage.legs` is a leg (T-32). | closed |
+| Q26 | **`rowsAtLimit` without a sent `limit`.** `attestations` and `structural_facts` use a server default of 100 and echo it. `flow_history` carry-in rows do not count against `limit`. | A default-100 page can be cut silently; a carry-in count would be wrong. | Pass 1b | Use the echoed `limit`; exempt `flow_history` (T-32). | closed |
+| Q27 | **Cover the full week.** Four 168-hour pulls are cut at 5000 rows (see Q24), and the open anomalies exceed the 500-row page. The week statistics of passes 2c to 2e (exceedances daily average, settlement health week values, peg, issuer flows) would be computed over a part of the window. Options: split calls by asset, bridge or series; shorter windows; ask the app for an offset or a higher cap; or compute only over the hours the page covers and say so. | Every week figure names its window; a partial window must not pass as a full one. | Passes 2c, 2d, 2e | none yet; to be proposed with live row counts per filter | open |
+| Q28 | **`run` after a call is "tunnel down" mid-pull.** T-31 rules `pull-only`: save the pack and exit 2. Should `run` do the same and stop before the agent, or go on and write a report whose data quality section names the hidden views? | Spec section 11 says an unreachable API stops the run with no report, and one failed endpoint does not. A tunnel that closes mid-pull is both. | Pass 3b | Stop like `pull-only`: save the pack, exit 2, no report. After reopening the tunnel, `run` pulls again. | open |
 
 ## Closed
 
@@ -57,3 +66,10 @@ Statuses: `open`, `closed`.
 | Q18 | 2026-10-07 | Actions pinned by major version tag. | DECISIONS rulings table |
 | Q13 | 2026-10-08 | T-23, T-24 and T-25 accepted as coded. | DECISIONS T-23 to T-25, rulings table |
 | Q14 | 2026-10-08 | The key is required by `run` only; `pull-only` and `render` load without it. | DECISIONS rulings table, T-25, RUNBOOK section 2 |
+| Q20 | 2026-10-08 | No: wait for the tunnel. Pass 1a's live check is run and 1a marked done before pass 1b starts. | DECISIONS rulings table |
+| Q21 | 2026-10-08 | Declared paths per catalogue row, plus `rowsAtLimit` beyond the spec. | DECISIONS T-29 |
+| Q22 | 2026-10-08 | A re-pull clears that date's `raw/`, `failures/` and `manifest.json` first. | DECISIONS T-30 |
+| Q23 | 2026-10-08 | Exit 2 if any call in the pull was "tunnel down"; else 0 once the pack is saved. | DECISIONS T-31 |
+| Q24 | 2026-10-08 | Pull as specced in pass 1b; record the cuts; the fix is question 27. | DECISIONS rulings table |
+| Q25 | 2026-10-08 | Every key under `coverage.legs` is a leg. | DECISIONS T-32 |
+| Q26 | 2026-10-08 | Sent `limit`, else echoed; `flow_history` exempt. | DECISIONS T-32 |

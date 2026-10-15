@@ -1,6 +1,8 @@
 """Paths by date; save and load the data pack, derived.json, reports, and the watch list."""
 
+import json
 import re
+import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
@@ -35,17 +37,51 @@ class PackPaths:
     def raw_file(self, name: str) -> Path:
         return self.raw / f"{name}.json"
 
+    def failure_file(self, name: str) -> Path:
+        return self.failures / f"{name}.json"
+
 
 def pack_paths(root: Path, run_date: date) -> PackPaths:
     """The pack for `run_date` under `root`, the directory that holds data/ (T-28)."""
     return PackPaths(root / "data" / run_date.isoformat())
 
 
-def save_pack(paths: PackPaths, raw: Mapping[str, bytes]) -> None:
-    """Write each body to raw/<name>.json byte for byte (R-PULL-2). Overwrites that date."""
-    bad = [name for name in raw if not _NAME.fullmatch(name)]
+def write_json(path: Path, value: object) -> None:
+    """Sorted keys, two-space indent, a final newline (DATA-CONTRACTS conventions)."""
+    path.write_text(json.dumps(value, sort_keys=True, indent=2, ensure_ascii=False) + "\n", "utf-8")
+
+
+def _check_names(*groups: Mapping[str, object]) -> None:
+    bad = [name for group in groups for name in group if not _NAME.fullmatch(name)]
     if bad:
         raise ValueError(f"not a plain catalogue name: {bad!r}")
-    paths.raw.mkdir(parents=True, exist_ok=True)
+
+
+def _clear(paths: PackPaths) -> None:
+    """Remove an earlier pull of this date, so the pack is exactly one pull (T-30)."""
+    for directory in (paths.raw, paths.failures):
+        if directory.exists():
+            shutil.rmtree(directory)
+    paths.manifest.unlink(missing_ok=True)
+
+
+def save_pack(
+    paths: PackPaths,
+    raw: Mapping[str, bytes],
+    failures: Mapping[str, Mapping],
+    manifest: Mapping,
+) -> None:
+    """Write one pull: raw bodies byte for byte (R-PULL-2), failure records, the manifest.
+
+    An earlier pull of the same date is removed first (T-30); derived.json is left alone.
+    """
+    _check_names(raw, failures)
+    _clear(paths)
+    paths.raw.mkdir(parents=True)
     for name, body in raw.items():
         paths.raw_file(name).write_bytes(body)
+    if failures:
+        paths.failures.mkdir()
+        for name, record in failures.items():
+            write_json(paths.failure_file(name), record)
+    write_json(paths.manifest, manifest)

@@ -69,7 +69,9 @@ Terms as the documents use them. Where a term belongs to the Blockford API, the 
 | Finding | The deterministic conclusion a surface opens with: `id` (content-addressed, stable for the same condition), `kind`, `severity`, `headline`, `narrative`, `evidence`, `coverage`. Not persisted by the app; composed at read time. | |
 | Surface | A view that carries a `finding`. The API spec names four: Capital Flow (`/flow/chains`), Bridge Health (`/bridges/:bridge/health`), Corridor Confidence (`/corridors/confidence`), Stablecoin Liquidity (`/stablecoins/:asset/liquidity`). | *confirm (question 7)* |
 | Coverage leg | A part of a response's coverage report. A leg that is not `ok` is recorded as a data quality item. | |
-| Truncated | A response flag meaning rows were cut. Always recorded. | |
+| Truncated | A response flag meaning the row cap was reached, so rows may have been cut. Always recorded, with the path of each flag that was true. | |
+| Rows at limit | A page whose rows equal the `limit` asked for (or echoed): it may have been cut, even when the endpoint has no truncation flag. Recorded as `rowsAtLimit` (R-PULL-8). | |
+| Declared path | Where in a response a flag lives, named per endpoint in the catalogue in `pull.py`. The manifest reads only declared paths, never every key of that name (T-29). | |
 | `total` versus rows | When a response says `total` is larger than the rows it returned. Always recorded. | |
 | RCR | A figure the spec names as gated for publication later (decision 6). Meaning per the API spec. | *confirm* |
 | Assets | The stablecoins pulled per asset: USDT, USDC, DAI, PYUSD, USDe. | |
