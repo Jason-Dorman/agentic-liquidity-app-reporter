@@ -25,18 +25,33 @@ When `flow_history` came back `truncated: true`, the re-call with `limit=5000` i
 
 ### 1.1 Failure record
 
+An HTTP error keeps the body as text. The body here has the shape the vendored spec gives an `INTERNAL_ERROR`:
+
 ```json
 {
-  "name": "flow_history",
-  "endpoint": "/flow/history",
-  "params": {"hours": 168},
-  "at": "2026-10-07T06:00:03Z",
-  "status": 400,
-  "error": "hours must be between 1 and 168"
+  "name": "corridors",
+  "endpoint": "/corridors",
+  "params": {"limit": 500},
+  "at": "2026-10-07T06:00:04Z",
+  "status": 500,
+  "error": "{\"error\":{\"code\":\"INTERNAL_ERROR\",\"message\":\"Internal server error\"}}"
 }
 ```
 
-`status` is the HTTP status, or `null` when no response arrived (timeout, connection refused). `error` is the body or the exception message, as text. A connection-refused error is recorded with `error` starting `tunnel down:` (T-18), so the agent and the reader can tell it from an empty response.
+A call with no answer has `status: null` and the client's message:
+
+```json
+{
+  "name": "bsh",
+  "endpoint": "/bsh",
+  "params": {"hours": 168, "limit": 5000},
+  "at": "2026-10-07T06:00:11Z",
+  "status": null,
+  "error": "timeout: no answer from /bsh within 30 s"
+}
+```
+
+`status` is the HTTP status, or `null` when no response arrived (timeout, connection refused). `error` is the body or the exception message, as text: for an HTTP error the whole body decoded as UTF-8 (`HTTP <status>` when the body is empty); otherwise the client's message, which starts `tunnel down:`, `timeout:` or `unreachable:`. A connection-refused error is recorded with `error` starting `tunnel down:` (T-18), so the agent and the reader can tell it from an empty response.
 
 ### 1.2 Manifest
 
@@ -56,14 +71,52 @@ When `flow_history` came back `truncated: true`, the re-call with `limit=5000` i
       "status": 200,
       "bytes": 48213,
       "truncated": false,
-      "coverageNotOk": [],
-      "totalExceedsRows": {"total": 612, "rows": 500}
+      "truncatedAt": [],
+      "coverageNotOk": null,
+      "totalExceedsRows": {"total": 612, "rows": 500},
+      "rowsAtLimit": {"rows": 500, "limit": 500}
     }
   ]
 }
 ```
 
-`truncated`, `coverageNotOk`, and `totalExceedsRows` are read from the response where the API provides them. Where the response has no such field the value is `null`, not `false`. `baseUrlHost` records the host only, never the full base URL.
+The flags are read from paths that each catalogue row in `pull.py` declares, never by walking the body (T-29). Where the response has no such field the value is `null`, not `false`. A declared path that is absent from the body is reported with value `null`, never read as `ok` or `false`.
+
+| Field | Value |
+|---|---|
+| `truncated` | `true` if any declared truncation flag is true; `false` if all are false; `null` if the response holds none |
+| `truncatedAt` | the declared paths whose flag was true; `[]` when none; `null` when `truncated` is `null` |
+| `coverageNotOk` | `[{"leg": "coverage.fetcher", "value": "not_monitored"}]` for each declared coverage leg that is not `ok`; `[]` if all are `ok`; `null` if the endpoint declares none |
+| `totalExceedsRows` | `{"total", "rows"}` when `total` is larger than the rows served; `false` when not; `null` when the response has no `total` |
+| `rowsAtLimit` | `{"rows", "limit"}` when the rows served reach the `limit` the call sent, or else the `limit` the response echoes (T-32); `false` when fewer; `null` when there is neither, when the endpoint declares no rows or they cannot be counted, and always for `flow_history` (T-32). Beyond spec section 5 (Q21): `exceedances`, `spread_history` and `issuer_flows` carry no truncation flag, so a page cut at its limit is otherwise silent. `bsh` has its own flag and gets both |
+
+A failed call's manifest row has `ok: false`, its `status` (or `null`), and `null` for `bytes` and every flag. `baseUrlHost` records the host only, never the full base URL.
+
+A re-pull on the same date first removes that date's `raw/`, `failures/` and `manifest.json`, so the pack on disk is exactly one pull (T-30).
+
+### 1.3 Declared paths
+
+Where each endpoint's flags live, as declared in `pull.py` (T-29, T-32). Confirmed against the live pull of 2026-10-08, when all 23 calls answered 200. `key[]` steps into every item of a list; `.*` means every key of that object is a leg. A blank cell means the endpoint declares nothing there, so that flag is `null`.
+
+| Name | Truncation flags | Coverage legs | `total` / rows | `limit` |
+|---|---|---|---|---|
+| `flow_chains` | | `coverage.flowLeg`, `coverage.statusHoldLeg`, `coverage.materialityLeg` | | |
+| `flow_history` | `truncated` | | | none: carry-in rows do not count against it (Q3) |
+| `bridge_across`, `bridge_cctp`, `bridge_stargate` | | `coverage.fetcher` | | |
+| `corridors` | `truncation.transfers.truncated`, `truncation.poolSnapshots.truncated` | | `total` / `corridors` | sent, 500 |
+| `anomalies_open`, `anomalies_all` | | | `total` / `anomalies` | sent, 500 |
+| `exceedances` | | | / `exceedances` | sent, 5000 |
+| `spread_history` | | | / `series` | sent, 5000 |
+| `bsh` | `truncation.truncated` | | / `series` | sent, 5000 |
+| `liquidity_{asset}` | `depth.history.truncated`, `depth.venueHistory.truncated`, `timelines[].truncated`, `exceedances.truncated` | `coverage.legs.*` (six on 2026-10-08: `depth`, `metrics`, `spread`, `profile`, `exceedances`, `fits`) | | |
+| `issuer_flows` | | | / `series` | sent, 5000 |
+| `attestations` | | | / `attestations` | echoed, 100 |
+| `structural_facts` | | | / `records` | echoed, 100 |
+| `health`, `confidence`, `spread_latest`, `depth_latest` | | | | |
+
+Not legs, so not declared: the `coverage` of `depth_latest` (the venue composition), `attestations` (one entry per issuer and subject), `bsh` (pair counts), and the `coverage` inside each `finding`.
+
+What the live pull of 2026-10-08 recorded: `bridge_stargate` `coverage.fetcher` is `not_monitored`; `corridors` `truncation.transfers` hit its cap; `bsh` hit its cap; three liquidity files had `exceedances.truncated`; open anomalies had `total` 5333 against a 500-row page; `exceedances`, `spread_history`, `bsh` and `issuer_flows` each served exactly 5000 rows, which covered between about 11 hours (`issuer_flows`) and 5.8 days (`spread_history`) of the 168 asked for (question 27).
 
 ## 2. Previous-run inputs
 

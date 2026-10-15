@@ -33,7 +33,7 @@ The first four run in `make test`. The fifth is the exit check of each milestone
 
 | Fake | Replaces | Behavior |
 |---|---|---|
-| `FakeClient` (`tests/fakes.py`) | `client.get` | A dict from `(path, params)` to a canned client result: a `Response`, or a failure value (`HttpError`, `TunnelDown`, `Timeout`, `Unreachable`). Records every call with its timeout. Has no POST method, like the real one. Tests of `client.py` itself use httpx's `MockTransport`, so no socket is opened. |
+| `FakeClient` (`tests/fakes.py`) | `client.get` | A dict from `(path, None)`, or a list of `((path, params), result)` pairs when params are set, to a canned client result: a `Response`, or a failure value (`HttpError`, `TunnelDown`, `Timeout`, `Unreachable`). An optional `default` answers every call not listed, so a `pull-only` test need list only the calls it is about. Records every call with its timeout. Has no POST method, like the real one. Tests of `client.py` itself use httpx's `MockTransport`, so no socket is opened. |
 | `FakeMessages` | `client.messages.create` | A scripted list of responses returned in order. Each is a real SDK response type built from a dict, so block types and `stop_reason` are read the same way as in production. Records every request so tests can assert on `messages`, `tools`, `system`, `output_config`. |
 | `FakeFiles` | `client.files.upload` and `delete` | Returns ids; records uploads and deletes. Can fail delete on demand. |
 | temp dirs | `data/`, `reports/`, `state/` | `tmp_path` from pytest, passed to `store.py` as its root directory (T-28). |
@@ -59,7 +59,12 @@ Grouped by module. Each line is a test or a small group of tests.
 - Timeout: failure record with `status: null` (R-PULL-3).
 - Connection refused: failure record with `status: null` and `error` starting `tunnel down:` (T-18).
 - `truncated`, coverage not `ok`, `total` over rows: each recorded in the manifest (R-PULL-4).
-- `flow_history` with `truncated: true`: exactly one re-call with `limit=5000`; both bodies saved; the manifest records both (R-PULL-6).
+- Declared paths (T-29, T-32): a flag named in a list item is reported with its index; one flag false and one absent is `null`, not `false`; a `null` truncation block is `null`; a declared leg absent from the body, or a `coverage.legs` that is null, a string or a list, is listed with value `null`; every key under `coverage.legs` is a leg; `coverage` blocks that are not legs are not read.
+- Rows at limit (R-PULL-8): rows that reach the sent `limit`, or else the echoed one, are recorded; fewer is `false`; `flow_history`, and calls with neither a sent nor an echoed limit, are `null`.
+- A 200 whose body is not a JSON object is kept as received, with every flag `null`.
+- A long HTTP error body with newlines is kept whole in its failure record, neither cut nor collapsed (DATA-CONTRACTS 1.1).
+- Connection refused mid-pull: every later name still gets a file or a record; the summary counts failures by kind.
+- `flow_history` with `truncated: true`: exactly one re-call with `limit=5000`; both bodies saved; the manifest records both (R-PULL-6). A retry still truncated is not called again; a failed first call or `truncated` not `true` gives no retry; a failed retry has its own failure record.
 - Fields absent from a response yield `null` in the manifest, not `false` (R-PULL-4).
 - The client has no way to send a non-GET request: `get` is its only public method (R-PULL-5, D-03).
 - The client keeps a 2xx body byte for byte; a non-2xx is an `HttpError` with status and body; a 3xx is not followed; the timeout defaults to 30 s and can be set per call (T-26).
@@ -68,7 +73,8 @@ Grouped by module. Each line is a test or a small group of tests.
 - Connection refused and connection reset are `TunnelDown` naming host and port; a timeout is `Timeout`; a failed name lookup is `Unreachable` and never says "tunnel down" (T-18, T-26).
 - Health (`pull.check_health`): one GET of `/health`; the spec example gives the three T-19 fields; `degraded` and `down` still count as reachable; an absent field shows as `missing` and a null as `null`; a 200 body that is not a JSON object is `NotJson`; a failed call is passed through (T-27).
 - Health unreachable: nothing written, exit 2, message says "tunnel down" on connection refused (R-RUN-4, T-18).
-- `store.py`: pack paths by date; `save_pack` round-trips bytes exactly; a second save on one date overwrites; a name that is not a plain file name is refused (R-PULL-2, T-28).
+- `store.py`: pack paths by date; `save_pack` round-trips bytes exactly; failure records and the manifest are written with sorted keys and two-space indent; a re-pull leaves nothing from the earlier pull and keeps `derived.json` (T-30); a name that is not a plain file name is refused, in raw or failures, before anything is removed (R-PULL-2, T-28).
+- `pull-only` after the health check: the pack is saved under the run's UTC date in the root the wiring names; an HTTP error, a timeout or an unreachable call exits 0; any "tunnel down" call exits 2 with the hint and the pack saved; a long error is one log line, its whitespace collapsed and cut to 300 characters (T-31, RUNBOOK section 9).
 
 ### `derive.py`
 

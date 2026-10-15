@@ -1,7 +1,7 @@
 # Build Plan — Blockford Daily Review
 
-**Version:** 0.4 (2026-10-08)
-**Status:** milestone 0 done on 2026-10-08: pass 0a on 2026-10-07, pass 0b (CI) on 2026-10-08, with its red-branch check and branch protection waived by Jason. Pass 1a is in progress: questions 13 and 14 were ruled on 2026-10-08, its three tasks are built, and it waits on one live check with the tunnel open.
+**Version:** 0.5 (2026-10-08)
+**Status:** milestone 0 done on 2026-10-08: pass 0a on 2026-10-07, pass 0b (CI) on 2026-10-08, with its red-branch check and branch protection waived by Jason. Milestone 1 done on 2026-10-08: pass 1a when its live check passed with the tunnel open, pass 1b with its exit check against the live API. Pass 2a is next; passes 2c to 2e wait on question 27.
 
 Spec section 12 sets the order: six steps, each ending with a check before the next starts, then a week of reading. Those are the **milestones** here, with their exit checks unchanged. Each milestone is split into **passes** on module boundaries, so that one pass is small enough to write, test, review and commit in one sitting, and no pass touches code another pass owns. Jason ruled this split on 2026-10-07.
 
@@ -51,7 +51,8 @@ flowchart TD
     classDef progress fill:#fff2cc,stroke:#a67c00,color:#3d2e00
     class P0a done
     class P0b done
-    class P1a progress
+    class P1a done
+    class P1b done
 ```
 
 Green is done. Yellow is in progress. Uncoloured is not started.
@@ -61,7 +62,7 @@ Green is done. Yellow is in progress. Uncoloured is not started.
 | Milestone | Passes | Status |
 |---|---|---|
 | 0 Scaffold | 0a, 0b | **done** 2026-10-08 |
-| 1 Pull | 1a, 1b | in progress |
+| 1 Pull | 1a, 1b | **done** 2026-10-08 |
 | 2 Derive | 2a to 2e | not started |
 | 3 Agent without tools | 3a to 3c | not started |
 | 4 `api_get` | 4a, 4b | not started |
@@ -73,15 +74,15 @@ Green is done. Yellow is in progress. Uncoloured is not started.
 |---|---|---|---|
 | 0a | `pyproject.toml`, `Makefile`, package skeleton, `config.py`, CLI stubs, fixtures dir | — | **done** 2026-10-07 |
 | 0b | `.github/workflows/check.yml`, test network guard, repository rule tests | — (Q15 to Q18 ruled 2026-10-07) | **done** 2026-10-08. Milestone 0 exit check (2026-10-08 UTC): pass 0a's done-when line holds; `vendor/API-SPEC.md` is present with its copy header (`tests/test_layout.py`); workflow `check` green on GitHub Actions for PR #1 (push and pull_request runs) and on `main` after the merge (run 37720954382, commit `f4adc3b`). The red-branch check and branch protection (task 6) were waived by Jason; task 6 stays open as a follow-up. |
-| 1a | `client.py`, `store.py` (pack paths and save), health check | — (Q13, Q14 ruled 2026-10-08) | in progress |
-| 1b | `pull.py` catalogue, manifest, failure records, `flow_history` retry | — | not started |
+| 1a | `client.py`, `store.py` (pack paths and save), health check | — (Q13, Q14 ruled 2026-10-08) | **done** 2026-10-08 |
+| 1b | `pull.py` catalogue, manifest, failure records, `flow_history` retry | — (pass 1a done; Q20 to Q26 ruled 2026-10-08, T-29 to T-32) | **done** 2026-10-08. Milestone 1 exit check (2026-10-08 05:20 UTC): `uv run daily-review pull-only` with the tunnel open logged `pull: 23 calls, 23 ok, 0 failed` and exited 0; `data/2026-10-08/` holds 23 raw files and no failure records, and `manifest.json` has 23 rows (no retry: `flow_history` was not truncated). |
 | 2a | `derive.py` skeleton, windows, first run, data quality; fixture conventions | — | not started |
 | 2b | Finding comparison, corridor tier changes | — | not started |
-| 2c | Anomalies, exceedances, flow history | — | not started |
-| 2d | Settlement health, peg | — | not started |
-| 2e | Depth, issuer flows | — | not started |
+| 2c | Anomalies, exceedances, flow history | Q27: cover the full 168 hours | not started |
+| 2d | Settlement health, peg | Q27: cover the full 168 hours | not started |
+| 2e | Depth, issuer flows | Q27: cover the full 168 hours | not started |
 | 3a | `schema.py`, `render.py` | — | not started |
-| 3b | `prompts/system.md`, `agent.py` without tools, `cli run`, `cli render` | — | not started |
+| 3b | `prompts/system.md`, `agent.py` without tools, `cli run`, `cli render` | Q28: `run` after a mid-pull tunnel down | not started |
 | 3c | First live run, token and cache measurement | — | not started |
 | 4a | `tools.py`: definition, allowlist, caps | size cap value: ask Jason | not started |
 | 4b | Loop handles `tool_use`; counts; cross-checks | Q8: confirm `/impact/estimate` before allowlisting | not started |
@@ -168,11 +169,11 @@ Tests: the socket guard makes a connection to localhost raise; the repository ru
 
 **Outcome (2026-10-08 UTC):** done. Jason pushed the change as PR #1 (`feature/ci-gates`) and merged it. Workflow `check` passed on the branch push, on the pull request, and on `main` after the merge (run 37720954382, about 12 seconds). Two done-when items were not met and Jason waived them: no run with a deliberate lint error shows red on GitHub (no failed run exists), and `main` is not protected (task 6). Recorded in [DECISIONS.md](DECISIONS.md). Question 19 (unanchored `.gitignore` entries) was raised for pass 3a.
 
-## Milestone 1 — Pull (in progress)
+## Milestone 1 — Pull (done 2026-10-08)
 
 **Goal:** save the data pack. Every endpoint has a file or a failure record.
 
-### Pass 1a — client, store, health (in progress)
+### Pass 1a — client, store, health (done 2026-10-08)
 
 Tasks:
 
@@ -188,22 +189,28 @@ Tests: `FakeClient` by `(path, params)`; the client type has no attribute that s
 
 **Progress (2026-10-08 UTC):** tasks 1 to 3 are in the working tree. Q13 and Q14 were ruled before any code, and the choices the tasks needed were put to Jason as T-26 (client details), T-27 (health body, and the health check living in `pull.py` as `check_health`) and T-28 (store root, `save_pack` scope, logging) and accepted. `make check` gives lint clean and 147 tests passed (72 before this pass). An adversarial review (four lenses, each finding put to a skeptic) confirmed ten defects, all fixed in this pass with tests: the tunnel-down test chain did not match real httpx; httpx logged the full URL; a body that failed to decode escaped as a traceback; pass 3b did not list the key check; the logging setup was untested; a malformed base URL was reported as exit 2; a deeply nested health body crashed; the tunnel hint, the error-body cut and the one-line settings error were untested or wrong. Each fix was checked by a mutation run on a scratch copy: all thirteen mutations now fail the suite. T-25, T-26 and T-28 were amended on Jason's ruling. The key is now optional in `Settings`; `config.require_api_key` is written and tested and is wired into `run` in pass 3b. `save_pack` is written and tested but `pull-only` saves nothing yet; pass 1b wires it in. Live check, tunnel closed (no `.env` on this machine, so no key either): `uv run daily-review pull-only` printed `health check failed: tunnel down: connection refused at localhost:3300` and the RUNBOOK hint, exited 2, and wrote nothing. The pass stays `in progress` until the same command, run with the tunnel open, prints the `health:` line and exits 0.
 
-### Pass 1b — catalogue, manifest, retry (not started)
+**Outcome (2026-10-08 UTC):** done. With the tunnel open, `uv run daily-review pull-only` printed `health: status=operational corridorsMonitored=44 updatedAt=2026-10-08T05:09:45.904Z`, exited 0, and wrote nothing (the pull lands in pass 1b). With the tunnel closed, the same command printed `health check failed: tunnel down: connection refused at localhost:3300` and the RUNBOOK hint, and exited 2. Both halves of the done-when line hold.
+
+### Pass 1b — catalogue, manifest, retry (done 2026-10-08)
 
 Tasks:
 
-1. [ ] `pull.py`: the endpoint catalogue as data, one row per spec section 5 line (23 names), each with its path and params. The pull function walks it, calls `client`, and builds the `DataPack`: raw bodies, failure records (`status: null` and `error` starting `tunnel down:` on connection refused), manifest rows with `truncated`, `coverageNotOk`, `totalExceedsRows`, each `null` when the response has no such field.
-2. [ ] `/flow/history` with `hours=168`, `limit=500`. If the response has `truncated: true`, re-call once with `limit=5000`, save it as `flow_history.retry`, give it its own manifest row (Q3 ruling).
-3. [ ] `store.py`: save failures and the manifest beside the raw files.
-4. [ ] `cli.py` `pull-only`: health, pull, save.
+1. [x] `pull.py`: the endpoint catalogue as data, one row per spec section 5 line (23 names), each with its path, params, and the declared paths of its truncation flags, coverage legs, `total` and rows (T-29). The pull function walks it, calls `client`, and builds the `DataPack`: raw bodies, failure records (`status: null` and `error` starting `tunnel down:` on connection refused), manifest rows with `truncated`, `truncatedAt`, `coverageNotOk`, `totalExceedsRows`, `rowsAtLimit`, each `null` when the response has no such field (DATA-CONTRACTS section 1.2).
+2. [x] `/flow/history` with `hours=168`, `limit=500`. If the response has `truncated: true`, re-call once with `limit=5000`, save it as `flow_history.retry`, give it its own manifest row (Q3 ruling).
+3. [x] `store.py`: save failures and the manifest beside the raw files. A re-pull on the same date first removes that date's `raw/`, `failures/` and `manifest.json` (T-30).
+4. [x] `cli.py` `pull-only`: health, pull, save, and a summary line of calls ok and failed by kind. Exit 2 with the tunnel hint if any call was "tunnel down", else 0 (T-31).
 
-Tests: all 23 succeed; one fails with 400 and the others proceed; one times out; one is connection refused mid-run; a body with `truncated: true`; `flow_history` truncated triggers exactly one re-call with `limit=5000` and both bodies are saved; a body with a coverage leg not `ok`; a body where `total` exceeds the rows; fields absent from a response give `null` in the manifest; raw bytes saved equal bytes received.
+Tests: all 23 succeed; one fails with 400 and the others proceed; one times out; one is connection refused mid-run; a body with `truncated: true`; a declared flag or leg absent from the body is reported as `null`, never as `false` or `ok`; a page whose rows equal its `limit` gives `rowsAtLimit`; a re-pull leaves no file from the earlier pull; any "tunnel down" call exits 2 after the pack is saved, and HTTP errors alone exit 0; `flow_history` truncated triggers exactly one re-call with `limit=5000` and both bodies are saved; a body with a coverage leg not `ok`; a body where `total` exceeds the rows; fields absent from a response give `null` in the manifest; raw bytes saved equal bytes received.
 
 **Done when:** tests pass; a live `pull-only` writes a file or a failure record for every name.
 
 **Milestone 1 exit check:** against the live API, `data/YYYY-MM-DD/` holds a raw file or a failure record for every one of the 23 names, and `manifest.json` has 23 rows (24 with a retry).
 
-**Docs:** DATA-CONTRACTS section 1 confirmed against real responses; RUNBOOK troubleshooting for pull errors.
+**Docs:** DATA-CONTRACTS section 1 confirmed against real responses, with the declared paths per endpoint; RUNBOOK troubleshooting for pull errors and the `pull-only` exit codes (T-31); ARCHITECTURE failure table; TESTING pull cases.
+
+**Outcome (2026-10-08 UTC):** done. Jason ruled that 1b waits for 1a's live check (Q20); with the tunnel open, 1a passed and 1b started. Before any code, one copy of each endpoint was pulled into a scratch directory outside the repository to read the real shapes. They differ from the vendored spec in small ways, ruled as T-32 (Q24 to Q26): the liquidity files serve six coverage legs, not five; `attestations` and `structural_facts` echo a default `limit` of 100. `pull.py` holds the 23-row catalogue as data with each row's declared paths, reads the manifest flags from them, builds failure records, and re-calls `flow_history` once when truncated. `store.save_pack` writes raw bodies, failure records and the manifest, and clears an earlier pull of the date first. `pull-only` logs one line per failed call and a summary, and exits 2 if any call was "tunnel down". `make check` gives lint clean and 237 tests passed (147 before this pass). The live pull took about 95 seconds; its flags match the live bodies (DATA-CONTRACTS section 1.3). Four 168-hour pulls are cut at 5000 rows and the open anomalies exceed their 500-row page: recorded in every manifest, and raised as question 27, which blocks passes 2c to 2e. Question 28 (`run` after a mid-pull tunnel down) was raised for pass 3b.
+
+**Review (2026-10-15):** an adversarial review of the pass, four lenses with an independent skeptic per finding, raised 22 findings: 9 confirmed, all low, none a wrong behaviour of the code. On Jason's ruling the seven distinct defects were fixed in this pass. Five were docs that disagreed with the code or the rulings: DATA-CONTRACTS 1.2 on `rowsAtLimit` (echoed limit, T-32); R-PULL-8, DATA-CONTRACTS 1.2 and T-29 naming `bsh` as flagless; an impossible failure record example in DATA-CONTRACTS 1.1; the RUNBOOK log order. Four were missing tests: the whole error kept on disk, one log line per failure, and a `coverage.legs` that is not an object. Each new test was checked by a mutation on a scratch copy, and each mutation now fails the suite. `make check`: lint clean, 241 tests passed. Not ruled in, and open as a follow-up: a test pinning the catalogue's declared paths to DATA-CONTRACTS 1.3.
 
 ## Milestone 2 — Derive (not started)
 

@@ -51,9 +51,9 @@ From [ENGINEERING-PRINCIPLES.md](ENGINEERING-PRINCIPLES.md): maximize cohesion, 
 | `cli.py` | Parse the command, wire the modules, run the eight steps in order (or from a saved pack with `--date`), map outcomes to exit codes. | all below | none of its own |
 | `config.py` | Load and validate settings from the environment into one typed `Settings` value. | — | env, `.env` |
 | `client.py` | One HTTP GET function against the base URL with a timeout (30 s by default). Returns a `Response` (status, headers, body bytes) or a failure value: `HttpError` (non-2xx; redirects are not followed), `TunnelDown` (connection refused or reset, T-18), `Timeout`, or `Unreachable` (any other transport error, or a body that does not decode). It never raises for these. It has no POST method (T-26). | — (takes the base URL) | HTTP |
-| `pull.py` | The health check (`check_health`: GET `/health`, the three T-19 fields, or why not, T-27), the endpoint catalogue (spec section 5) and the pull: call each endpoint through `client`, keep the raw body, build the failure records and the manifest flags (truncated, coverage, total versus rows). Returns a `DataPack`. | `client` | none |
+| `pull.py` | The health check (`check_health`: GET `/health`, the three T-19 fields, or why not, T-27), the endpoint catalogue (spec section 5) and the pull: call each endpoint through `client`, keep the raw body, build the failure records and the manifest flags (truncated, coverage, total versus rows, rows at limit) from the paths each catalogue row declares (T-29, T-32), and re-call `flow_history` once with `limit=5000` when it says `truncated: true`. Never stops early. Returns a `DataPack`: raw bodies, failure records, the manifest, and why each failed call failed. | `client` | none |
 | `derive.py` | Compute `Derived` from a `DataPack` and the previous `Derived` (or none, on the first run). One function per statistic in spec section 6. | — | none |
-| `store.py` | Paths by date under a root directory it is given (T-28). Save and load the data pack, `derived.json`, reports, and the watch list. List the last N reports. | — (takes the root) | filesystem |
+| `store.py` | Paths by date under a root directory it is given (T-28). A re-pull on a date first removes that date's `raw/`, `failures/` and manifest (T-30). Save and load the data pack, `derived.json`, reports, and the watch list. List the last N reports. | — (takes the root) | filesystem |
 | `uploads.py` | Upload the data pack files to the Files API, return their ids, delete them at the end. | `config` | Files API |
 | `tools.py` | The `api_get` tool: its JSON schema, the allowlist built from the API spec, the call cap, the result size cap, and the function that executes one call through `client`. | `client`, `config` | HTTP (through `client`) |
 | `agent.py` | The loop: build the system prompt and the first message, call the Messages API, dispatch tool calls, handle every stop reason, collect usage, return the parsed report and run facts. | `tools`, `schema`, `config` | Messages API |
@@ -298,7 +298,8 @@ flowchart TD
 | Usage error: unknown command, missing argument, bad `--date` | Stop before any call. Name the problem. | 1 (T-23) |
 | `/health` unreachable: connection refused or reset ("tunnel down"), timeout, other transport error, or an HTTP error | Stop. Nothing written. No report. On "tunnel down" the message names the tunnel and points to RUNBOOK section 1.1. | 2 |
 | `/health` answers 200 with a body that is not a JSON object | Stop. Nothing written. The message says to check the port in `BLOCKFORD_API_BASE_URL` (T-27). | 2 |
-| One or more endpoints fail | Continue. Record. Report written. | 0 |
+| One or more endpoints fail with an HTTP error, a timeout, or another transport error | Continue. Failure record. `pull-only`: pack saved. `run`: report written. | 0 |
+| A call during the pull is "tunnel down" (refused or reset after `/health` answered) | Continue to the end, so every name has a file or a record. `pull-only`: save the pack, log the tunnel hint (T-31). `run`: question 28. | 2 |
 | Claude call error, `refusal`, `max_tokens`, or invalid JSON | Keep data pack. No report. | 3 |
 | Tool cap reached | Continue. Agent told. Report records it. | 0 |
 | Files API delete fails at the end | Report already saved. Log the file ids so they can be deleted by hand. | 0, with a warning |

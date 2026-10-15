@@ -1,7 +1,7 @@
 # Runbook — Blockford Daily Review
 
 **Version:** 0.1 (2026-10-07)
-**Status:** draft. Commands confirmed in pass 0a on 2026-10-07: every `make` target runs. From pass 1a (2026-10-08) `pull-only` runs the health check; `run` and `render` parse and exit 0 without doing anything until their passes land. Port and base path are final (question 2 ruled 2026-10-07). CI added in pass 0b on 2026-10-07 (section 10).
+**Status:** draft. Commands confirmed in pass 0a on 2026-10-07: every `make` target runs. From pass 1b (2026-10-08) `pull-only` runs the health check, pulls the 23 endpoints and saves the data pack; `derived.json` comes in pass 2a; `run` and `render` parse and exit 0 without doing anything until their passes land. Port and base path are final (question 2 ruled 2026-10-07). CI added in pass 0b on 2026-10-07 (section 10).
 
 ## 1. Before the first run
 
@@ -22,11 +22,11 @@ make check               # uv run ruff check src tests, then uv run pytest
 
 ### 1.1 The tunnel
 
-From the app repo, open the tunnel and leave that shell running:
+From the app repo, `/mnt/c/Users/rjd61/Documents/RebelWealth/scouts/corridor-scouts` on this machine (confirmed by Jason, 2026-10-08), open the tunnel and leave that shell running:
 
 ```bash
 export AWS_PROFILE=blockford-admin
-cd infra
+cd /mnt/c/Users/rjd61/Documents/RebelWealth/scouts/corridor-scouts/infra
 INSTANCE_ID=$(terraform output -raw instance_id)
 aws ssm start-session --target "$INSTANCE_ID" \
   --document-name AWS-StartPortForwardingSession \
@@ -93,7 +93,7 @@ flowchart LR
 Other commands, with the `uv` command each target runs:
 
 ```bash
-make pull                     # uv run daily-review pull-only: save the data pack and derived.json, no agent
+make pull                     # uv run daily-review pull-only: save the data pack (derived.json from pass 2a), no agent
 make render DATE=YYYY-MM-DD   # uv run daily-review render reports/YYYY-MM-DD.json; without DATE it prints the usage and fails
 make help                     # list every target
 uv run daily-review run --date YYYY-MM-DD   # reuse that date's saved pack; no pull. No make target; it is the exception, not the routine.
@@ -111,15 +111,15 @@ uv run daily-review run --date YYYY-MM-DD   # reuse that date's saved pack; no p
 | `reports/YYYY-MM-DD.md` | The rendered report |
 | `state/watchlist.json` | The updated watch list |
 
-Running twice on one date overwrites that date's files. The previous-run comparison uses the most recent earlier date, not the same date.
+Running twice on one date replaces that date's files: a second pull first removes the date's `raw/`, `failures/` and `manifest.json` (T-30), so the pack is always one pull. The previous-run comparison uses the most recent earlier date, not the same date.
 
 ## 5. Exit codes
 
 | Code | Meaning | What to do |
 |---|---|---|
-| 0 | Report written. Endpoint failures, if any, are in the data quality section. | Read the report. |
+| 0 | Report written (`pull-only`: pack saved). Endpoint failures, if any, are in the data quality section, and in `failures/` and the manifest. | Read the report. |
 | 1 | Bad or missing setting, or a usage error: unknown command, missing argument, or a `--date` that is not a real `YYYY-MM-DD` date (T-23). | Fix `.env`, or the command line. The message names the problem. |
-| 2 | `/health` unreachable, or it answered with something that is not the API. Nothing written. | Read the message: "tunnel down" means reopen the port-forward (section 1.1); an HTTP status, a timeout or "not a JSON object" means check the app and the port. Run again. |
+| 2 | `/health` unreachable, or it answered with something that is not the API: nothing written. Or (`pull-only`) a call during the pull was "tunnel down": the pack is saved with its failure records (T-31). | Read the message: "tunnel down" means reopen the port-forward (section 1.1); an HTTP status, a timeout or "not a JSON object" means check the app and the port. Run again. |
 | 3 | Claude call failed, refused, hit `max_tokens`, or the JSON did not validate. Data pack kept. | Read the log. Run again. The pack for the date is already saved, so `run --date YYYY-MM-DD` reuses it without pulling again. |
 
 ## 6. Troubleshooting
@@ -134,7 +134,10 @@ Running twice on one date overwrites that date's files. The previous-run compari
 | Exit 1, `Bad settings. ... BLOCKFORD_API_BASE_URL: ...` | The base URL has no host, or a port that is not a number from 1 to 65535 | The base URL in `.env` |
 | Exit 2, `health check failed: health body is not a JSON object` | Something other than the API answered on that port | The port in `BLOCKFORD_API_BASE_URL`: 3300 is the tunnel, 3000 is the local dev stack |
 | `health:` line shows `missing` or `null` for a field | `/health` answered without that field, or with null. The run goes on (T-27). | Compare with the `GET /api/health` section of `vendor/API-SPEC.md`; tell Jason if the API changed |
-| Failure records or `api_get` results saying "tunnel down" mid-run | The tunnel closed during the run | Reopen it and run again |
+| Exit 2 after `tunnel down during the pull; the pack is saved with its failure records.` | The tunnel closed during the pull, after `/health` answered | Reopen it (section 1.1) and run again; the new pull replaces the saved one (T-30) |
+| `api_get` results saying "tunnel down" mid-run | The tunnel closed during the agent's turn | Reopen it and run again |
+| `pull: <name> failed: timeout: no answer from ... within 30 s` | That endpoint is slow. On 2026-10-08 the liquidity reads took 5 to 15 s each and the whole pull about 95 s | Run again; if the same endpoint times out every day, tell Jason (the timeout is `DEFAULT_TIMEOUT` in `client.py`, T-26) |
+| Manifest row with `rowsAtLimit` or `totalExceedsRows` set | The page was cut at its limit: not an error, a data quality item (R-PULL-4, R-PULL-8) | Expected today on `anomalies_*`, `exceedances`, `spread_history`, `bsh`, `issuer_flows` (question 27) |
 | `flow_history` failure record with 400 | `hours` or `limit` not an integer in range (`hours` 1 to 720, `limit` 1 to 5000) | The catalogue value in `pull.py`; the 400 body states the range |
 | Many failure records with the same HTTP status | App restarted mid-run | Run again |
 | Exit 3 with a schema error | The model's JSON did not validate, or `max_tokens` was hit | The log shows the stop reason and the validation message. If `max_tokens`, raise `MAX_OUTPUT_TOKENS`. |
@@ -168,7 +171,15 @@ The run logs to stderr with the standard `logging` module, one line per event, e
 
 The `httpx` library's own request lines are held back (its logger is set to WARNING), since they print the full URL. A bad-settings message is one line that names every bad setting.
 
-After the health line: each API call with path, status, bytes; each Messages API request with stop reason and usage; each tool call with path, query, status, bytes, cut or not; each upload and delete. No log line contains the API key or a request body.
+After the health line, the pull logs where the pack was saved, then one WARNING per failed call (its name and the first 300 characters of its error, on one line; the whole error is in its failure record), then a summary. If any call was "tunnel down", two ERROR lines follow: `tunnel down during the pull; ...` and the tunnel hint.
+
+```
+2026-10-08T05:22:05Z INFO pack saved: /home/jdorman/projects/custom_agents/liquidity_read_agent/data/2026-10-08
+2026-10-08T05:22:05Z WARNING pull: bsh failed: timeout: no answer from /bsh within 30 s
+2026-10-08T05:22:05Z INFO pull: 23 calls, 22 ok, 1 failed (timeout 1)
+```
+
+Each call's status and bytes are in `manifest.json`, not the log. Later steps add: each Messages API request with stop reason and usage; each tool call with path, query, status, bytes, cut or not; each upload and delete. No log line contains the API key or a request body.
 
 ## 10. CI
 

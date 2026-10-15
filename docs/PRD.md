@@ -67,6 +67,7 @@ Each requirement cites its spec section. Status is `spec` (stated in the spec), 
 | R-PULL-5 | GET only. `/impact/estimate` is not in the pack; the agent may call it through its tool. | §2.3, §5 | spec |
 | R-PULL-6 | `/flow/history` is called with `hours=168` and `limit=500`. The route accepts integer `hours` 1 to 720 and integer `limit` 1 to 5000; anything else returns 400. Carry-in rows are exempt from `limit`. When the response says `truncated: true`, the call is repeated with a larger `limit`, up to 5000, and both responses are kept in the pack. | §5, §13.3, Q3 ruling | spec |
 | R-PULL-7 | `anomalies_all` is filtered in code by `detectedAt` and `resolvedAt`, since `/anomalies` has no time window. | §5, §7 rule 9 | spec |
+| R-PULL-8 | A page whose rows reach its `limit` (sent, or else echoed by the response) is recorded as possibly cut. Three pulls (`exceedances`, `spread_history`, `issuer_flows`) carry no truncation flag of their own, so this is their only sign of a cut page; `bsh` has its own flag as well. Beyond the spec. | §11 | accepted (T-29, T-32) |
 
 ### 5.3 Derived statistics
 
@@ -177,7 +178,7 @@ Tracked in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md). Questions 1 to 12 were closed
 |---|---|
 | §2 Decisions | [DECISIONS.md](DECISIONS.md) D-01 to D-10 |
 | §4 How one run works | R-RUN-3, R-RUN-4, R-RUN-5 |
-| §5 The data pack | R-PULL-1 to R-PULL-7 |
+| §5 The data pack | R-PULL-1 to R-PULL-8 (R-PULL-8 from T-29 and T-32) |
 | §6 Stats computed by code | R-DRV-1 to R-DRV-12 |
 | §7 The agent | R-AGT-1 to R-AGT-10 |
 | §8 The report | R-RPT-1 to R-RPT-6 |
