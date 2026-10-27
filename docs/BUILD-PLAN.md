@@ -1,7 +1,7 @@
 # Build Plan — Blockford Daily Review
 
-**Version:** 0.6 (2026-10-27)
-**Status:** milestone 0 done on 2026-10-08: pass 0a on 2026-10-07, pass 0b (CI) on 2026-10-08, with its red-branch check and branch protection waived by Jason. Milestone 1 done on 2026-10-08: pass 1a when its live check passed with the tunnel open, pass 1b with its exit check against the live API. Milestone 2 is in progress: pass 2a done on 2026-10-27. Pass 2b is next; passes 2c to 2e wait on question 27.
+**Version:** 0.7 (2026-10-27)
+**Status:** milestone 0 done on 2026-10-08: pass 0a on 2026-10-07, pass 0b (CI) on 2026-10-08, with its red-branch check and branch protection waived by Jason. Milestone 1 done on 2026-10-08: pass 1a when its live check passed with the tunnel open, pass 1b with its exit check against the live API. Milestone 2 is in progress: passes 2a and 2b done on 2026-10-27. Passes 2c to 2e wait on question 27.
 
 Spec section 12 sets the order: six steps, each ending with a check before the next starts, then a week of reading. Those are the **milestones** here, with their exit checks unchanged. Each milestone is split into **passes** on module boundaries, so that one pass is small enough to write, test, review and commit in one sitting, and no pass touches code another pass owns. Jason ruled this split on 2026-10-07.
 
@@ -54,6 +54,7 @@ flowchart TD
     class P1a done
     class P1b done
     class P2a done
+    class P2b done
 ```
 
 Green is done. Yellow is in progress. Uncoloured is not started.
@@ -78,7 +79,7 @@ Green is done. Yellow is in progress. Uncoloured is not started.
 | 1a | `client.py`, `store.py` (pack paths and save), health check | — (Q13, Q14 ruled 2026-10-08) | **done** 2026-10-08 |
 | 1b | `pull.py` catalogue, manifest, failure records, `flow_history` retry | — (pass 1a done; Q20 to Q26 ruled 2026-10-08, T-29 to T-32) | **done** 2026-10-08. Milestone 1 exit check (2026-10-08 05:20 UTC): `uv run daily-review pull-only` with the tunnel open logged `pull: 23 calls, 23 ok, 0 failed` and exited 0; `data/2026-10-08/` holds 23 raw files and no failure records, and `manifest.json` has 23 rows (no retry: `flow_history` was not truncated). |
 | 2a | `derive.py` skeleton, windows, first run, data quality; fixture conventions | — (Q29 to Q38 ruled 2026-10-27, T-33 to T-38; review fixes and Q41, Q42, T-39 ruled 2026-10-27) | **done** 2026-10-27 |
-| 2b | Finding comparison, corridor tier changes | — | not started |
+| 2b | Finding comparison, corridor tier changes | — (Q43 to Q51 ruled 2026-10-27, T-40 to T-43) | **done** 2026-10-27 |
 | 2c | Anomalies, exceedances, flow history | Q27: cover the full 168 hours | not started |
 | 2d | Settlement health, peg | Q27: cover the full 168 hours | not started |
 | 2e | Depth, issuer flows | Q27: cover the full 168 hours | not started |
@@ -235,16 +236,18 @@ Tests: first run gives `firstRun: true`, `previousRunDate: null`, empty comparis
 
 **Review (2026-10-27 UTC):** an adversarial review of the pass, four lenses with an independent skeptic per finding, raised 13 findings and confirmed 10, all low; three were the same doc error, so six were distinct. On Jason's ruling all six were fixed in this pass: `store.load_previous_derived` crashed on an earlier pack folder that could not be searched (Python 3.11 `Path.exists` raises `PermissionError`), so pull-only lost `derived.json` and exit 2; the read now treats that as an unusable file. RUNBOOK told the reader to rebuild an old date's `derived.json` with `make pull`, which cannot target a date. This outcome said eight stubs, not nine. DATA-CONTRACTS gave the truncation note with `is` only. Pass 2a was dated 2026-10-26, local time, not UTC. Three tests were missing (a bad date folder beside a usable older pack, a `derived.json` nested too deep to parse, a `derived.json` that is a folder), plus one for the permission case. Two refuted findings were real gaps that no ruling covered, and Jason ruled both fixed now (questions 41 and 42, T-39): `failedCalls` also lists a failed manifest row without its record, and a record without a manifest row; and a 2xx body that is not a JSON object is a failed call. Each new test was checked by a mutation on a scratch copy, and each mutation now fails the suite. `make check`: lint clean, 292 tests passed.
 
-### Pass 2b — findings, tier changes (not started)
+### Pass 2b — findings, tier changes (done 2026-10-27)
 
 Tasks:
 
-1. [ ] Finding comparison: collect `finding.id`, `kind`, `severity` from the four surfaces (`flow_chains`, `bridge_across`, `bridge_cctp`, `confidence`, the five `liquidity_*` files), compare with the previous derived by id equality into `new`, `gone`, `stillOpen`, and `changed` with `field`, `from`, `to` (Q7 ruling). A surface whose file failed is listed in a `surfacesMissing` note, and its previous findings are neither new nor gone.
-2. [ ] Corridor tier changes: any corridor whose `recommendation` differs from the previous run, with `from`, `to`, `observedAt`.
+1. [x] Finding comparison: collect `finding.id`, `kind`, `severity` from the four surfaces, as ten files (`flow_chains`, `bridge_across`, `bridge_cctp`, `bridge_stargate`, `confidence`, and `findings[]` of the five `liquidity_*` files; T-41), compare with the previous run's `findings.open` by id equality into `new`, `gone`, `stillOpen`, and `changed` with `field`, `from`, `to` (Q7 ruling, T-42). A surface whose call failed, or whose body does not give every finding, is listed in `findings.surfacesMissing`, and its previous findings are carried in `open`, neither new nor gone (T-40, T-41).
+2. [x] Corridor tier changes: any corridor whose `recommendation` differs from the previous run's `tiers`, with `from`, `to`, `observedAt` (T-43).
 
-Tests: same id both runs is `stillOpen`; new id is `new`; missing id is `gone`; a `severity` change appears in `changed`; a failed surface does not produce `gone` entries; a corridor with a changed `recommendation` appears; first run gives empty lists.
+Tests: same id both runs is `stillOpen`; new id is `new`; missing id is `gone`; a `severity` change appears in `changed`; a failed surface does not produce `gone` entries; a corridor with a changed `recommendation` appears; first run gives empty lists. Also, from the rulings: a carried set or tier map is the base on the run after; a surface first read is in `open` only; a previous file with no base names its date; a corridor that appears or leaves has a null side (TESTING section 3, `derive.py`).
 
 **Done when:** tests pass on fixtures cut from the spec's `finding` section and the `/corridors/confidence` example.
+
+**Outcome (2026-10-27 UTC):** done. Before any code, Jason ruled questions 43 to 51, which became T-40 to T-43. The main one: `new`, `gone` and `stillOpen` alone could not carry a comparison base, since a first run leaves them empty and a failed surface drops out. `derived.json` now holds `findings.open`, a map by surface of the findings open after the run, and `corridorTierChanges.tiers`, both filled on a first run and carried forward for a surface not read. `findings` also has `surfacesMissing`, and `corridorTierChanges` has `tiers` and `note`. `derive.py` reads ten surface files, keeps the liquidity bands from `findings[]`, and treats a surface as missing when its call failed or its body does not give every finding with an id. A previous file with no base, as one from pass 2a, gives empty lists and a note naming its date. Pass 2b added the first response fixtures: three spec examples copied verbatim, and `liquidity_DAI.json` built from the `finding` interface, since the spec has no example body for that endpoint (Q50). The golden `derived/first-run.json` was regenerated and its diff read by hand: only the new fields changed. Eight mutations on a scratch copy (no carry-forward, lenient ids, widest band only, `{}` tiers, no first-read note, no `changed`, no repeat check, comparing a surface with no base) each fail the suite. `make check` gives lint clean and 329 tests passed (292 before this pass). As an extra check, `derive` was run in memory over the saved live pack of 2026-10-08, writing nothing: all ten surfaces read, 68 findings in `open`, 44 corridor tiers. A second run over the same pack gave 68 still open with nothing new, gone or changed. Not done, and not in this pass's tasks: the golden `derived/day-two.json` that TESTING section 5 lists.
 
 ### Pass 2c — anomalies, exceedances, flow history (not started)
 

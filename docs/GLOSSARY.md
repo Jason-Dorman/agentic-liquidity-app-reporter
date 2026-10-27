@@ -51,7 +51,7 @@ Terms as the documents use them. Where a term belongs to the Blockford API, the 
 |---|---|---|
 | Blockford | The app whose API this script reads. Its API base path is `/corridor-scout/api`. | |
 | Corridor | A route for moving a stablecoin between chains, with transfer counts, success rates, durations, and a confidence tier. | |
-| Corridor tier | The confidence level the API assigns a corridor, carried in the `recommendation` field. A change in it is a tier change. | *confirm field* |
+| Corridor tier | The level the API assigns a corridor on `/corridors/confidence`, carried in each row's `recommendation` field: `preferred`, `usable`, `degraded`, `avoid`, or `unknown`. A change in it is a tier change. | confirmed against the spec, pass 2b |
 | Capital flow | The view served by `/flow/chains`, with its own findings. | |
 | Flow history | `/flow/history`: status transitions over time. Write-on-change: a gap means the status held. Each row is an interval with `statusValidUntil`; each chain's newest row from before the window is served as `position: 'carry_in'`. Magnitudes hold only at the transition instant. Accepts integer `hours` 1 to 720 and `limit` 1 to 5000; out of range is 400. | |
 | Bridge | A cross-chain transfer system. The spec names Across, CCTP, and Stargate. Stargate is recorded as not monitored. | |
@@ -67,7 +67,8 @@ Terms as the documents use them. Where a term belongs to the Blockford API, the 
 | Attestation | A slow-moving record served by `/attestations`, used for staleness and change detection. | |
 | Structural fact | A slow-moving record served by `/structural-facts`, used for change detection only. | |
 | Finding | The deterministic conclusion a surface opens with: `id` (content-addressed, stable for the same condition), `kind`, `severity`, `headline`, `narrative`, `evidence`, `coverage`. Not persisted by the app; composed at read time. | |
-| Surface | A view that carries a `finding`. The API spec names four: Capital Flow (`/flow/chains`), Bridge Health (`/bridges/:bridge/health`), Corridor Confidence (`/corridors/confidence`), Stablecoin Liquidity (`/stablecoins/:asset/liquidity`). | *confirm (question 7)* |
+| Surface | A view that carries a `finding`. The API spec names four: Capital Flow (`/flow/chains`), Bridge Health (`/bridges/:bridge/health`), Corridor Confidence (`/corridors/confidence`), Stablecoin Liquidity (`/stablecoins/:asset/liquidity`). In the pack they are ten files, each compared as its own surface: `flow_chains`, `bridge_across`, `bridge_cctp`, `bridge_stargate`, `confidence`, and the five `liquidity_*` (T-41). | confirmed (question 7, T-41) |
+| Open set | `findings.open` in `derived.json`: per surface, the findings open after a run. A surface not read that day keeps its earlier set. The next run compares against it (T-40). | |
 | Coverage leg | A part of a response's coverage report. A leg that is not `ok` is recorded as a data quality item. | |
 | Truncated | A response flag meaning the row cap was reached, so rows may have been cut. Always recorded, with the path of each flag that was true. | |
 | Rows at limit | A page whose rows equal the `limit` asked for (or echoed): it may have been cut, even when the endpoint has no truncation flag. Recorded as `rowsAtLimit` (R-PULL-8). | |

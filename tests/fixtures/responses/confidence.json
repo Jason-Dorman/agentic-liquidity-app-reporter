@@ -1,0 +1,99 @@
+{
+  "corridors": [
+    {
+      "corridorId": "across_ethereum_base",
+      "bridge": "across",
+      "bridgeModel": "HubPool",
+      "sourceChain": "ethereum",
+      "destChain": "base",
+      "recommendation": "degraded",
+      "recommendationReason": "bsh_pressure",
+      "settlement": {
+        "level": "pressure",
+        "score": 0.31,
+        "bindingAsset": "USDT",
+        "reason": "bsh_ranked",
+        "contributingCount": 2,
+        "unknownCount": 0,
+        "uncomputable": [
+          { "asset": "USDC", "reason": "across_no_published_spoke_target" },
+          { "asset": "DAI",  "reason": "across_no_published_spoke_target" }
+        ],
+        "assets": [
+          { "asset": "USDT", "level": "pressure", "score": 0.31, "reason": "ratio 0.28 below healthy band", "method": "target_ratio" },
+          { "asset": "WETH", "level": "healthy", "score": 0.91, "reason": "ratio 0.86", "method": "target_ratio" }
+        ]
+      },
+      "observed": {
+        "healthStatus": "healthy",
+        "successRate24h": 99.5,
+        "p50DurationSeconds": 120,
+        "p90DurationSeconds": 300,
+        "transferCount24h": 90,
+        "completionObservable": true,
+        "completionObservableReason": null
+      },
+      "destinationChainFlow": {
+        "chain": "base",
+        "status": "outflow",
+        "unavailableReason": null,
+        "flowRatio": -0.42,
+        "netFlowUsd": -210000,
+        "windowHours": 24
+      },
+      "finding": {
+        "id": "corridor-across_ethereum_base-degraded",
+        "kind": "route_degraded",
+        "severity": "notable",
+        "corridorId": "across_ethereum_base",
+        "bridge": "across",
+        "sourceChain": "ethereum",
+        "destChain": "base",
+        "recommendation": "degraded",
+        "recommendationReason": "bsh_pressure",
+        "binding": { "leg": "settlement", "text": "settlement pressure · USDT" },
+        "settlementLevel": "pressure",
+        "settlementScore": 0.31,
+        "bindingAsset": "USDT",
+        "headline": "Transfers remain healthy on ethereum → base via across, but destination settlement is under pressure on USDT.",
+        "narrative": {
+          "whatHappened": "Destination settlement is under pressure on USDT (BSH 0.31) while observed transfer performance remains healthy over the last hour.",
+          "comparedWith": null,
+          "whyItMatters": "Destination settlement reads pressure on at least one asset, which lowers the corridor to the Degraded tier."
+        },
+        "corroboration": "settlement_impaired_transfers_healthy",
+        "corroborationText": "Transfers are healthy over the last hour, while destination settlement is under pressure on USDT. The two are independent measurements, and they disagree.",
+        "observed": {
+          "healthStatus": "healthy", "successRate24h": 99.5,
+          "p50DurationSeconds": 120, "p90DurationSeconds": 300, "transferCount24h": 90,
+          "completionObservable": true, "completionObservableReason": null,
+          "text": "Transfer health is healthy over the last hour. One-hour transfer times are p50 120s and p90 300s. Over 24 hours, 99.5% of 90 observable transfers succeeded.",
+          "summary": "Healthy (1h) · p50 120s · p90 300s (1h) · 99.5% success · 90 transfers (24h)"
+        },
+        "context": {
+          "chain": "base", "status": "outflow", "unavailableReason": null, "netFlowUsd": -210000, "flowRatio": -0.42, "windowHours": 24,
+          "text": "Context only: base flow status is outflow, -$210,000 net over 24h. Chain flow is bridge-agnostic and does not affect this route tier.",
+          "summary": "context · base outflow · -$210,000 net over 24h"
+        },
+        "detail": [
+          "The route tier is set by destination settlement, which reads pressure on USDT."
+        ],
+        "evidence": [
+          { "label": "Destination settlement by asset", "detail": "2 evaluated · 0 unavailable this read · 2 structurally unmeasurable · reason bsh_ranked" },
+          { "label": "Observed transfer performance", "detail": "90 transfers over 24h · completion outcomes observable" },
+          { "label": "Corridor events and exceedances", "detail": "threshold crossings and anomalies recorded for across_ethereum_base (bridge-level operational events carry no corridor key and are not included)" }
+        ],
+        "coverage": {
+          "settlementRanked": 2, "settlementUnknown": 0, "settlementUncomputable": 2,
+          "settlementAbsenceClass": null,
+          "caveats": [
+            "Route tiers use a deterministic worst-observed-leg rule: signals are not averaged, weighted or scored.",
+            "Destination-chain flow is context only and does not affect the route tier.",
+            "2 destination assets cannot carry a settlement reading with the available bridge data. They are outside the settlement verdict; this is structural, not an outage."
+          ]
+        }
+      }
+    }
+  ],
+  "updatedAt": "2026-08-28T14:35:00Z"
+}

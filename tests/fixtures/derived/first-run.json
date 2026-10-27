@@ -8,7 +8,9 @@
   },
   "corridorTierChanges": {
     "changes": [],
-    "missing": "Not computed yet: pass 2b."
+    "missing": "No tier comparison: the confidence call failed, or its body does not give every corridor with its id.",
+    "note": "First run: no previous run to compare with.",
+    "tiers": null
   },
   "dataQuality": {
     "coverageFailures": [
@@ -62,11 +64,24 @@
   "findings": {
     "changed": [],
     "gone": [],
-    "missing": "Not computed yet: pass 2b.",
+    "missing": null,
     "new": [],
     "note": "First run: no previous run to compare with.",
+    "open": {},
     "stillOpen": [],
-    "surfaces": []
+    "surfaces": [],
+    "surfacesMissing": [
+      "flow_chains",
+      "bridge_across",
+      "bridge_cctp",
+      "bridge_stargate",
+      "confidence",
+      "liquidity_USDT",
+      "liquidity_USDC",
+      "liquidity_DAI",
+      "liquidity_PYUSD",
+      "liquidity_USDe"
+    ]
   },
   "firstRun": true,
   "flowHistory": {

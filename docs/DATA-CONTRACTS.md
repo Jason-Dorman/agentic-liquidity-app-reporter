@@ -130,7 +130,7 @@ What the live pull of 2026-10-08 recorded: `bridge_stargate` `coverage.fetcher` 
 
 Computed by `derive.py` and written by `pull-only` from pass 2a (T-38). One key per statistic in spec section 6. Every statistic carries its window. Where a source value is null, the derived value is null and `missing` says why.
 
-The window fields and `dataQuality` are computed from pass 2a. Each other statistic holds its shape below with empty maps and lists, null scalars, and `missing` set to `Not computed yet: pass 2b.` (or 2c, 2d, 2e) until its pass lands (T-35).
+The window fields and `dataQuality` are computed from pass 2a; `findings` and `corridorTierChanges` from pass 2b. Each other statistic holds its shape below with empty maps and lists, null scalars, and `missing` set to `Not computed yet: pass 2c.` (or 2d, 2e) until its pass lands (T-35).
 
 ```json
 {
@@ -142,17 +142,23 @@ The window fields and `dataQuality` are computed from pass 2a. Each other statis
   "firstRun": false,
 
   "findings": {
-    "surfaces": ["flow_chains", "confidence", "..."],
+    "surfaces": ["flow_chains", "bridge_across", "confidence", "..."],
+    "surfacesMissing": ["bridge_cctp"],
     "new": [{"id": "...", "surface": "...", "kind": "...", "severity": "..."}],
     "gone": [{"id": "...", "surface": "...", "kind": "...", "severity": "..."}],
     "stillOpen": [{"id": "...", "surface": "...", "kind": "...", "severity": "..."}],
     "changed": [{"id": "...", "field": "severity", "from": "...", "to": "..."}],
-    "note": "First run: no previous run to compare with.",
+    "open": {
+      "<surface>": [{"id": "...", "surface": "<surface>", "kind": "...", "severity": "..."}]
+    },
+    "note": null,
     "missing": null
   },
 
   "corridorTierChanges": {
     "changes": [{"corridor": "...", "from": "...", "to": "...", "observedAt": "..."}],
+    "tiers": {"<corridorId>": {"recommendation": "...", "observedAt": "..."}},
+    "note": null,
     "missing": null
   },
 
@@ -221,7 +227,10 @@ The window fields and `dataQuality` are computed from pass 2a. Each other statis
 Rules the shape enforces:
 
 - `runDate`, `windowStart` and `windowEnd` are the manifest's. `historyStart` is `windowEnd` less 168 hours, the hours the catalogue pulls, whatever `HISTORY_DAYS` says (T-34, question 40). `previousRunDate` is the previous `derived.json`'s `runDate` (section 2).
-- `firstRun: true` comes with empty `new`, `gone`, `stillOpen`, `changed` lists and a `note`. Nothing is reported as new. On a later run `note` is `null` unless pass 2b sets one.
+- `firstRun: true` comes with empty `new`, `gone`, `stillOpen`, `changed` and tier `changes`, and the first-run `note` in both `findings` and `corridorTierChanges`. Nothing is reported as new. `open` and `tiers` are still filled, so the next run has a base (T-40).
+- `findings` (T-40 to T-42). The surfaces are `flow_chains` (`chains[].finding`), `bridge_across`, `bridge_cctp`, `bridge_stargate` (`finding`), `confidence` (`corridors[].finding`) and the five `liquidity_*` files (`findings[]`, one entry per band; `finding` is not read, since it copies the widest band). `surfaces` lists those read, `surfacesMissing` the rest, both in catalogue order. A surface is missing when its call is in `dataQuality.failedCalls` or its body does not give every finding with a string `id`. `open` maps each surface to its open findings, sorted by id: today's for a surface read, the previous run's for a surface missing (carried forward). No key means the surface has never been read. Each surface read today is compared with its own key in the previous `open`, by id: `new` (only today), `gone` (only before, with its earlier `kind` and `severity`), `stillOpen` (both), and `changed` (in both, one row per `kind` or `severity` that differs; the id stays in `stillOpen`). A missing surface is in none of the four. The four lists follow catalogue order, then id. A repeated id keeps its first entry. An absent `kind` or `severity` is `null`. Ids encode the condition, so a move in tier or kind is one `gone` and one `new`.
+- `findings.note`: the first-run note; or `The previous run (<date>) holds no findings to compare with.` when the previous file has no usable `open` (one from before pass 2b); or `No earlier reading to compare with: <surfaces>.` for surfaces read today that have no key in the previous `open` (they go into `open` only, never `new`); else `null`. `missing` is `null`.
+- `corridorTierChanges` (T-43). `tiers` maps each `corridorId` in the `confidence` body to its `recommendation` and `observedAt`, the body's `updatedAt` as served (`null` when absent). `changes` lists, sorted by corridor, each corridor whose `recommendation` differs from the previous `tiers`: a corridor that appears has `from: null`, one that leaves has `to: null`, each with today's `updatedAt`. When `confidence` failed, or its body does not give every corridor with a string `corridorId`, `changes` is empty, `missing` is `No tier comparison: the confidence call failed, or its body does not give every corridor with its id.`, and `tiers` is the previous run's, carried forward. `tiers` is `null` while no tier map is known. `note`: the first-run note; `The previous run (<date>) holds no corridor tiers to compare with.` when the previous file has no usable `tiers`; else `null`.
 - Every statistic section carries `missing`: `null` once computed, else a sentence. `corridorTierChanges` is an object, not a bare list, so it can say why `changes` is empty (T-35).
 - `depth.byAsset.<asset>.<band>` entries are separate figures. No key holds a sum across bands or venues.
 - `issuerFlows` has no total above the `flowClass` level. `unit` is `token` unless the source field is marked USD.
@@ -229,7 +238,7 @@ Rules the shape enforces:
 - `dataQuality` rows follow manifest order (T-36). `failedCalls`: one per failure record, its `error` kept whole; also one per failed manifest row without its record (`error`: `no failure record in the pack`), one per 2xx call whose raw body is not a JSON object (`error`: `answered <status>, but the body is not a JSON object; nothing in it can be read`), and after the manifest rows, by name, one per failure record that has no manifest row (T-39). `truncations`: one per cause, so a call can have two. A manifest row with `truncated: true` gives the note `The response says it was cut: <truncatedAt paths> is true.` for one path, `... are true.` for several; one with `rowsAtLimit` set gives `Rows served (<rows>) reached the limit (<limit>); the page may be cut.` `coverageFailures`: one per `coverageNotOk` entry, with `state` its value, `null` for an absent leg. `partialTotals`: one per `totalExceedsRows` object. `flow_history.retry` has its own manifest row, so its own rows. A `truncated: null` gives no row, even when a declared flag was absent (question 39).
 - `flowHistory.byChain.<chain>.state` is the spec's `chains[]` state verbatim (`transitions_observed`, `unchanged_in_window`, `unknown_truncated`, `no_history`, `excluded_by_filter`). For `unknown_truncated` and `no_history`, `transitionsInWindow` is `null` and `missing` says why. `currentStatus` and `statusSince` come from the newest row; `carryIn` is `true` when that row is the carry-in row. No `flowRatio` or `netFlowUsd` appears here.
 
-The exact field names on the API side (`recommendation`, `detectedAt`, `resolvedAt`, `severity`, `kind`, `truncated`, `coverage`, `total`) are those the spec names. Any other field name is confirmed against the vendored `API-SPEC.md` before it is coded.
+The exact field names on the API side (`recommendation`, `detectedAt`, `resolvedAt`, `severity`, `kind`, `truncated`, `coverage`, `total`) are those the spec names. Any other field name is confirmed against the vendored `API-SPEC.md` before it is coded. Pass 2b confirmed `finding`, `findings`, `chains`, `corridors`, `id`, `corridorId` and `updatedAt` against the spec and against the live pack of 2026-10-08, whose ten surfaces gave 68 findings and 44 corridor tiers.
 
 ## 4. The watch list
 

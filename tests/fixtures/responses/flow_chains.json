@@ -1,0 +1,167 @@
+{
+  "windowHours": 24,
+  "coverage": { "flowLeg": "ok", "statusHoldLeg": "ok", "materialityLeg": "ok" },
+  "chains": [
+    {
+      "chain": "base",
+      "compositeStatus": "flight",
+      "compositeReason": "lfv_outflow_with_bsh_pressure",
+      "flow": {
+        "status": "outflow",
+        "unavailableReason": null,
+        "flowRatio": -0.42,
+        "netFlowUsd": -210000,
+        "inboundUsd": 145000,
+        "outboundUsd": 355000,
+        "totalVolumeUsd": 500000,
+        "windowHours": 24
+      },
+      "settlement": {
+        "worstLevel": "pressure",
+        "worstScore": 0.31,
+        "bindingBridge": "across",
+        "bindingAsset": "WETH",
+        "reason": "bsh_ranked",
+        "contributingCount": 2,
+        "unknownCount": 0,
+        "readings": [
+          {
+            "bridge": "across",
+            "asset": "WETH",
+            "level": "pressure",
+            "score": 0.31,
+            "reason": "ratio 0.28 below healthy band",
+            "method": "target_ratio",
+            "underlying": { "currentBalance": 112.4, "target": 400 },
+            "materiality": "material_by_usd"
+          },
+          {
+            "bridge": "cctp",
+            "asset": "USDC",
+            "level": "healthy",
+            "score": 0.94,
+            "reason": "latency within baseline",
+            "method": "latency_baseline",
+            "underlying": { "currentMedianSeconds": 812, "baselineMedianSeconds": 795 },
+            "materiality": "not_a_spoke"
+          }
+        ],
+        "excluded": []
+      },
+      "finding": {
+        "id": "flow-base-flight-confirmed",
+        "kind": "flight_confirmed",
+        "severity": "elevated",
+        "chain": "base",
+        "compositeStatus": "flight",
+        "compositeReason": "lfv_outflow_with_bsh_pressure",
+        "windowHours": 24,
+        "headline": "$210,000 net outflow from base over 24h, while settlement on across/WETH was under pressure.",
+        "narrative": {
+          "whatHappened": "$210,000 net outflow from base over 24h.",
+          "comparedWith": "$145,000 in · $355,000 out over 24h.",
+          "whyItMatters": "Capital was leaving the chain while settlement capacity was under pressure. Blockford classifies this combination as flight."
+        },
+        "binding": {
+          "bridge": "across",
+          "asset": "WETH",
+          "level": "pressure",
+          "score": 0.31,
+          "reason": "bsh_ranked"
+        },
+        "flowStatusHold": { "status": "outflow", "seconds": 16500 },
+        "detail": [
+          "Most constrained settlement reading: across / WETH, under pressure (BSH 0.31). 2 settlement readings evaluated.",
+          "The flow signal has remained in net outflow for 4h 35m. This duration applies to flow only; settlement conditions can change independently."
+        ],
+        "evidence": [
+          { "label": "Chain inflows and outflows", "detail": "inbound/outbound over 24h · composite status flight" },
+          { "label": "Flow-state history", "detail": "records flow-state changes rather than every observation" },
+          { "label": "Settlement readings", "detail": "2 evaluated · 0 unavailable · most constrained across/WETH" }
+        ],
+        "coverage": {
+          "flowLeg": "measured",
+          "flowAbsenceReason": null,
+          "settlementRanked": 2,
+          "settlementUnknown": 0,
+          "settlementExcluded": 0,
+          "caveats": ["Net flow is measured at the chain level and is not attributed to the bridge named in the settlement signal, or to any single bridge."]
+        }
+      }
+    },
+    {
+      "chain": "optimism",
+      "compositeStatus": "insufficient_data",
+      "compositeReason": "lfv_insufficient_data",
+      "flow": {
+        "status": "insufficient_data",
+        "unavailableReason": null,
+        "flowRatio": null,
+        "netFlowUsd": null,
+        "inboundUsd": null,
+        "outboundUsd": null,
+        "totalVolumeUsd": null,
+        "windowHours": 24
+      },
+      "settlement": {
+        "worstLevel": "unknown",
+        "worstScore": null,
+        "bindingBridge": null,
+        "bindingAsset": null,
+        "reason": "bsh_unavailable",
+        "contributingCount": 0,
+        "unknownCount": 1,
+        "readings": [
+          {
+            "bridge": "across",
+            "asset": "WETH",
+            "level": "unknown",
+            "score": null,
+            "reason": "spoke_snapshot_unavailable",
+            "method": "target_ratio",
+            "underlying": { "target": 50 },
+            "materiality": "not_ranked"
+          }
+        ],
+        "excluded": []
+      },
+      "finding": {
+        "id": "flow-optimism-not-concluded",
+        "kind": "not_concluded",
+        "severity": "unknown",
+        "chain": "optimism",
+        "compositeStatus": "insufficient_data",
+        "compositeReason": "lfv_insufficient_data",
+        "windowHours": 24,
+        "headline": "No flow measurement is available for optimism over this 24h window. Settlement conditions could not be evaluated.",
+        "narrative": {
+          "whatHappened": "No flow measurement is available for optimism over this 24h window.",
+          "comparedWith": null,
+          "whyItMatters": "There is not enough readable flow or settlement data to classify the current condition: the flow condition is unclassified, and no settlement reading could be ranked."
+        },
+        "binding": {
+          "bridge": null,
+          "asset": null,
+          "level": "unknown",
+          "score": null,
+          "reason": "bsh_unavailable"
+        },
+        "flowStatusHold": null,
+        "detail": ["…"],
+        "evidence": [
+          { "label": "Chain inflows and outflows", "detail": "inbound/outbound over 24h · composite status insufficient_data" },
+          { "label": "Flow-state history", "detail": "records flow-state changes rather than every observation" }
+        ],
+        "coverage": {
+          "flowLeg": "absent",
+          "flowAbsenceReason": "lfv_no_reading",
+          "settlementRanked": 0,
+          "settlementUnknown": 1,
+          "settlementExcluded": 0,
+          "caveats": ["…", "Flow-state duration is unavailable because no transition history has been recorded for this chain. This does not mean the state is new."]
+        }
+      }
+    }
+  ],
+  "updatedAt": "2026-08-28T14:35:00Z"
+}

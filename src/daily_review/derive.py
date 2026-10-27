@@ -19,6 +19,22 @@ ISSUER_FLOWS_NOTE = "Totals by asset, event type, and flow class. No gross sum."
 NO_RECORD = "no failure record in the pack"  # a failed manifest row without its record (T-39)
 NOT_READ = "nothing in it can be read"
 
+# The finding surfaces in catalogue order (Q7, T-41). These names match pull.CATALOGUE.
+FINDING_SURFACES = (
+    "flow_chains",
+    "bridge_across",
+    "bridge_cctp",
+    "bridge_stargate",
+    "confidence",
+    *(f"liquidity_{asset}" for asset in ("USDT", "USDC", "DAI", "PYUSD", "USDe")),
+)
+ROW_FINDINGS = {"flow_chains": "chains", "confidence": "corridors"}  # a finding on each row
+COMPARED_FIELDS = ("kind", "severity")
+TIERS_NOT_READ = (
+    "No tier comparison: the confidence call failed, or its body does not give every "
+    "corridor with its id."
+)
+
 
 class Pack(Protocol):
     """What derive reads from one pull (DATA-CONTRACTS section 1). pull.DataPack fits (T-33)."""
@@ -49,22 +65,32 @@ FindingChange = TypedDict(
     "FindingChange", {"id": str, "field": str, "from": str | None, "to": str | None}
 )
 TierChange = TypedDict(
-    "TierChange", {"corridor": str, "from": str | None, "to": str | None, "observedAt": str}
+    "TierChange",
+    {"corridor": str, "from": str | None, "to": str | None, "observedAt": str | None},
 )
+
+
+class Tier(TypedDict):
+    recommendation: str | None
+    observedAt: str | None
 
 
 class Findings(TypedDict):
     surfaces: list[str]
+    surfacesMissing: list[str]
     new: list[FindingRef]
     gone: list[FindingRef]
     stillOpen: list[FindingRef]
     changed: list[FindingChange]
+    open: dict[str, list[FindingRef]]  # by surface; a key means that surface's set is known
     note: str | None
     missing: str | None
 
 
 class CorridorTierChanges(TypedDict):
     changes: list[TierChange]
+    tiers: dict[str, Tier] | None  # null while no tier map is known (T-40)
+    note: str | None
     missing: str | None
 
 
@@ -193,25 +219,216 @@ def _not_computed(next_pass: str) -> str:
     return f"Not computed yet: pass {next_pass}."
 
 
-# Stubs: each returns its empty shape until its pass lands (T-35).
+# Finding comparison (R-DRV-1, T-40 to T-42). Each surface is compared with its own set in the
+# previous run's `open`, by id equality (Q7). A surface not read today carries its previous set.
 
 
 def findings(pack: Pack, previous: Derived | None) -> Findings:
-    """Pass 2b. On a first run nothing is new: the lists stay empty with a note (R-DRV-10)."""
+    """new, gone, stillOpen and changed against the previous run's open set (T-40, T-41)."""
+    today = _read_surfaces(pack)
+    base = _previous_open(previous)
+    before = base or {}
+    rows: dict[str, list] = {"new": [], "gone": [], "stillOpen": [], "changed": []}
+    for name in FINDING_SURFACES:
+        if name in today and name in before:
+            for key, part in _compare(before[name], today[name]).items():
+                rows[key] += part
+    unseen = [name for name in today if name not in before]
     return {
-        "surfaces": [],
-        "new": [],
-        "gone": [],
-        "stillOpen": [],
-        "changed": [],
-        "note": FIRST_RUN_NOTE if previous is None else None,
-        "missing": _not_computed("2b"),
+        "surfaces": list(today),
+        "surfacesMissing": [name for name in FINDING_SURFACES if name not in today],
+        **rows,
+        "open": {
+            name: today[name] if name in today else before[name]
+            for name in FINDING_SURFACES
+            if name in today or name in before
+        },
+        "note": _findings_note(previous, base, unseen),
+        "missing": None,
     }
 
 
+def _read_surfaces(pack: Pack) -> dict[str, list[FindingRef]]:
+    """Each readable surface's findings, sorted by id, in catalogue order. A repeated id keeps
+    its first entry (T-42). A surface left out is missing (T-41)."""
+    failed = _failed_names(pack)
+    seen: set[str] = set()
+    read: dict[str, list[FindingRef]] = {}
+    for name in FINDING_SURFACES:
+        refs = _surface_refs(name, _body(pack, name, failed))
+        if refs is not None:
+            read[name] = sorted(_first_of_each(refs, seen), key=lambda ref: ref["id"])
+    return read
+
+
+def _first_of_each(refs: list[FindingRef], seen: set[str]) -> list[FindingRef]:
+    """The refs whose id is not in `seen`, each id once; adds them to `seen`."""
+    first: list[FindingRef] = []
+    for ref in refs:
+        if ref["id"] not in seen:
+            seen.add(ref["id"])
+            first.append(ref)
+    return first
+
+
+def _surface_refs(name: str, body: Mapping | None) -> list[FindingRef] | None:
+    """The surface's findings, or None unless the body gives every one with a string id."""
+    objects = _finding_objects(name, body) if body is not None else None
+    if objects is None or not all(_has_id(found, "id") for found in objects):
+        return None
+    return [
+        {
+            "id": found["id"],
+            "surface": name,
+            "kind": found.get("kind"),
+            "severity": found.get("severity"),
+        }
+        for found in objects
+    ]
+
+
+def _finding_objects(name: str, body: Mapping) -> list | None:
+    """Where each surface holds its findings (T-41). Liquidity: `findings[]`, one per band,
+    since `finding` copies the widest one."""
+    if name in ROW_FINDINGS:
+        rows = body.get(ROW_FINDINGS[name])
+        if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+            return None
+        return [row.get("finding") for row in rows]
+    if name.startswith("liquidity_"):
+        found = body.get("findings")
+        return found if isinstance(found, list) else None
+    return [body.get("finding")]
+
+
+def _compare(before: list[FindingRef], after: list[FindingRef]) -> dict[str, list]:
+    """One surface's new, gone, stillOpen and changed, each sorted by id."""
+    earlier = {ref["id"]: ref for ref in before}
+    now = {ref["id"] for ref in after}
+    still = [ref for ref in after if ref["id"] in earlier]
+    return {
+        "new": [ref for ref in after if ref["id"] not in earlier],
+        "gone": sorted((ref for ref in before if ref["id"] not in now), key=lambda r: r["id"]),
+        "stillOpen": still,
+        "changed": [
+            {"id": ref["id"], "field": field, "from": earlier[ref["id"]].get(field),
+             "to": ref[field]}
+            for ref in still
+            for field in COMPARED_FIELDS
+            if earlier[ref["id"]].get(field) != ref[field]
+        ],
+    }
+
+
+def _previous_open(previous: Derived | None) -> dict[str, list[FindingRef]] | None:
+    """The previous run's open set by surface, or None when it holds none, as a file from
+    before pass 2b does (T-40)."""
+    found = _section(previous, "findings").get("open")
+    if not isinstance(found, dict):
+        return None
+    usable = all(
+        isinstance(refs, list) and all(_has_id(ref, "id") for ref in refs)
+        for refs in found.values()
+    )
+    return found if usable else None
+
+
+def _findings_note(previous: Derived | None, base: dict | None, unseen: list[str]) -> str | None:
+    if previous is None:
+        return FIRST_RUN_NOTE
+    if base is None:
+        return f"The previous run ({previous['runDate']}) holds no findings to compare with."
+    if unseen:
+        return f"No earlier reading to compare with: {', '.join(unseen)}."
+    return None
+
+
+# Corridor tier changes (R-DRV-2, T-43): each corridor's `recommendation` against the previous
+# run's tiers. A corridor that appears has `from` null; one that leaves has `to` null.
+
+
 def corridor_tier_changes(pack: Pack, previous: Derived | None) -> CorridorTierChanges:
-    """Pass 2b."""
-    return {"changes": [], "missing": _not_computed("2b")}
+    base = _previous_tiers(previous)
+    read = _read_tiers(pack)
+    note = _tiers_note(previous, base)
+    if read is None:
+        return {"changes": [], "tiers": base, "note": note, "missing": TIERS_NOT_READ}
+    tiers, observed_at = read
+    changes = _tier_changes(base, tiers, observed_at) if base is not None else []
+    return {"changes": changes, "tiers": tiers, "note": note, "missing": None}
+
+
+def _read_tiers(pack: Pack) -> tuple[dict[str, Tier], str | None] | None:
+    """Each corridor's tier and the body's `updatedAt`, or None unless the body gives every
+    corridor with a string `corridorId`. A repeated corridor keeps its first row."""
+    body = _body(pack, "confidence", _failed_names(pack))
+    rows = body.get("corridors") if body is not None else None
+    if not isinstance(rows, list) or not all(_has_id(row, "corridorId") for row in rows):
+        return None
+    updated_at = body.get("updatedAt")
+    observed_at = updated_at if isinstance(updated_at, str) else None
+    tiers: dict[str, Tier] = {}
+    for row in rows:
+        tiers.setdefault(
+            row["corridorId"],
+            {"recommendation": row.get("recommendation"), "observedAt": observed_at},
+        )
+    return tiers, observed_at
+
+
+def _tier_changes(
+    before: dict[str, Tier], after: dict[str, Tier], observed_at: str | None
+) -> list[TierChange]:
+    changes: list[TierChange] = []
+    for corridor in sorted(before.keys() | after.keys()):
+        old = before.get(corridor, {}).get("recommendation")
+        new = after.get(corridor, {}).get("recommendation")
+        if old != new:
+            change = {"corridor": corridor, "from": old, "to": new, "observedAt": observed_at}
+            changes.append(change)
+    return changes
+
+
+def _previous_tiers(previous: Derived | None) -> dict[str, Tier] | None:
+    """The previous run's tiers, or None when it holds none (T-40)."""
+    found = _section(previous, "corridorTierChanges").get("tiers")
+    if not isinstance(found, dict) or not all(isinstance(t, dict) for t in found.values()):
+        return None
+    return found
+
+
+def _tiers_note(previous: Derived | None, base: dict | None) -> str | None:
+    if previous is None:
+        return FIRST_RUN_NOTE
+    if base is None:
+        return f"The previous run ({previous['runDate']}) holds no corridor tiers to compare with."
+    return None
+
+
+# Reading bodies for the comparisons.
+
+
+def _failed_names(pack: Pack) -> set[str]:
+    return {row["name"] for row in failed_calls(pack)}
+
+
+def _body(pack: Pack, name: str, failed: set[str]) -> dict | None:
+    """The parsed body of a call that did not fail, or None."""
+    if name in failed or name not in pack.raw:
+        return None
+    return _json_object(pack.raw[name])
+
+
+def _section(previous: Derived | None, key: str) -> Mapping:
+    found = previous.get(key) if previous is not None else None
+    return found if isinstance(found, dict) else {}
+
+
+def _has_id(value: object, key: str) -> bool:
+    return isinstance(value, dict) and isinstance(value.get(key), str)
+
+
+# Stubs: each returns its empty shape until its pass lands (T-35).
 
 
 def anomalies(pack: Pack) -> Anomalies:
@@ -293,18 +510,19 @@ def _failed_row(pack: Pack, call: Mapping) -> FailedCall | None:
     base = {"name": name, "endpoint": call["endpoint"], "status": call["status"]}
     if not call["ok"]:
         return {**base, "error": NO_RECORD}
-    if name in pack.raw and not _is_json_object(pack.raw[name]):
+    if name in pack.raw and _json_object(pack.raw[name]) is None:
         error = f"answered {call['status']}, but the body is not a JSON object; {NOT_READ}"
         return {**base, "error": error}
     return None
 
 
-def _is_json_object(body: bytes) -> bool:
-    """Whether the body parses to a JSON object, the same test pull.read_flags makes."""
+def _json_object(body: bytes) -> dict | None:
+    """The body if it parses to a JSON object, the same test pull.read_flags makes, else None."""
     try:
-        return isinstance(json.loads(body), dict)
+        parsed = json.loads(body)
     except (ValueError, RecursionError):  # RecursionError: a body nested too deep to parse
-        return False
+        return None
+    return parsed if isinstance(parsed, dict) else None
 
 
 def _failed_call(record: Mapping) -> FailedCall:

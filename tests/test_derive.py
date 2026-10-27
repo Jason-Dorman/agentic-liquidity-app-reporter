@@ -1,6 +1,7 @@
 """derive.py: the window fields, the first run, stub statistics, and the data quality part.
 
 DATA-CONTRACTS section 3, R-DRV-9 (data quality), R-DRV-10 (first run), T-33 to T-36.
+The finding comparison and tier changes are tested in test_derive_findings.py.
 """
 
 import ast
@@ -25,9 +26,8 @@ WINDOW = {
     "baseUrlHost": "localhost",
 }
 NOT_MONITORED = "not_monitored"
-STATISTICS = {
-    "findings": "2b",
-    "corridorTierChanges": "2b",
+COMPUTED = {"findings", "corridorTierChanges"}  # pass 2b
+STATISTICS = {  # stubs, by the pass that computes them
     "anomalies": "2c",
     "exceedances": "2c",
     "flowHistory": "2c",
@@ -105,6 +105,7 @@ def test_first_run_has_no_previous_date_empty_comparison_lists_and_the_note():
     assert findings["new"] == findings["gone"] == findings["stillOpen"] == findings["changed"] == []
     assert findings["note"] == FIRST_RUN_NOTE
     assert derived["corridorTierChanges"]["changes"] == []
+    assert derived["corridorTierChanges"]["note"] == FIRST_RUN_NOTE
 
 
 def test_a_run_with_a_previous_one_names_its_date_and_drops_the_first_run_note():
@@ -114,7 +115,7 @@ def test_a_run_with_a_previous_one_names_its_date_and_drops_the_first_run_note()
     assert derived["firstRun"] is False
     assert derived["previousRunDate"] == "2026-10-05"
     assert derived["findings"]["note"] is None
-    assert derived["findings"]["new"] == [], "the stub reports nothing as new"
+    assert derived["findings"]["new"] == []
 
 
 # Stubs until their pass lands (T-35).
@@ -124,11 +125,14 @@ def test_every_statistic_is_present_and_says_which_pass_computes_it():
     derived = derive(make_pack([]), None)
     for key, next_pass in STATISTICS.items():
         assert derived[key]["missing"] == f"Not computed yet: pass {next_pass}.", key
+    for key in COMPUTED:
+        assert derived[key]["missing"] != "Not computed yet: pass 2b.", key
 
 
 def test_derived_has_exactly_the_contract_keys():
     window = {"runDate", "windowStart", "windowEnd", "historyStart", "previousRunDate", "firstRun"}
-    assert set(derive(make_pack([]), None)) == window | set(STATISTICS) | {"dataQuality"}
+    expected = window | COMPUTED | set(STATISTICS) | {"dataQuality"}
+    assert set(derive(make_pack([]), None)) == expected
 
 
 def test_a_stub_never_stands_a_zero_for_a_figure_it_has_not_computed():

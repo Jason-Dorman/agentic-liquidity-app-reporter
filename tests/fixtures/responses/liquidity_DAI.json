@@ -1,0 +1,77 @@
+{
+  "asset": "DAI",
+  "finding": {
+    "id": "dai-dap50-below-range",
+    "kind": "below_operating_range",
+    "severity": "notable",
+    "asset": "DAI",
+    "bandBps": 50,
+    "headline": "DAI market depth within ±50 bps of the peg is $113,000 — 56% below its 2026-08-18 → 2026-09-01 baseline.",
+    "narrative": {
+      "whatHappened": "$113,000 of quoted market depth within ±50 bps of the peg.",
+      "comparedWith": "56% below the 2026-08-18 → 2026-09-01 baseline median of $258,000.",
+      "whyItMatters": "Less quoted liquidity is available near the peg than in the reference period. Latest peg-spread reading: −2.0 bps."
+    },
+    "detail": ["Depth was below its fitted floor in 100% of 288 observations. The floor was calibrated for a 10% breach rate."],
+    "evidence": [
+      { "label": "Depth vs. fitted floor", "detail": "…" },
+      { "label": "Floor breaches", "detail": "…" },
+      { "label": "Depth by venue", "detail": "…" }
+    ],
+    "coverage": { "observations": 288, "declaredVenues": 3, "coverageVersion": "v2", "caveats": ["…"] }
+  },
+  "findings": [
+    {
+      "id": "dai-dap10-not-concluded",
+      "kind": "not_concluded",
+      "severity": "unknown",
+      "asset": "DAI",
+      "bandBps": 10,
+      "headline": "Depth data for DAI within ±10 bps of the peg is currently unavailable.",
+      "narrative": {
+        "whatHappened": "Depth data for DAI within ±10 bps of the peg is currently unavailable.",
+        "comparedWith": null,
+        "whyItMatters": "…"
+      },
+      "detail": ["Reason code: depth_read_failed"],
+      "evidence": [],
+      "coverage": { "observations": 0, "declaredVenues": 3, "coverageVersion": null, "caveats": ["…"] }
+    },
+    {
+      "id": "dai-dap25-not-concluded",
+      "kind": "not_concluded",
+      "severity": "unknown",
+      "asset": "DAI",
+      "bandBps": 25,
+      "headline": "Depth data for DAI within ±25 bps of the peg is currently unavailable.",
+      "narrative": {
+        "whatHappened": "Depth data for DAI within ±25 bps of the peg is currently unavailable.",
+        "comparedWith": null,
+        "whyItMatters": "…"
+      },
+      "detail": ["Reason code: depth_read_failed"],
+      "evidence": [],
+      "coverage": { "observations": 0, "declaredVenues": 3, "coverageVersion": null, "caveats": ["…"] }
+    },
+    {
+      "id": "dai-dap50-below-range",
+      "kind": "below_operating_range",
+      "severity": "notable",
+      "asset": "DAI",
+      "bandBps": 50,
+      "headline": "DAI market depth within ±50 bps of the peg is $113,000 — 56% below its 2026-08-18 → 2026-09-01 baseline.",
+      "narrative": {
+        "whatHappened": "$113,000 of quoted market depth within ±50 bps of the peg.",
+        "comparedWith": "56% below the 2026-08-18 → 2026-09-01 baseline median of $258,000.",
+        "whyItMatters": "Less quoted liquidity is available near the peg than in the reference period. Latest peg-spread reading: −2.0 bps."
+      },
+      "detail": ["Depth was below its fitted floor in 100% of 288 observations. The floor was calibrated for a 10% breach rate."],
+      "evidence": [
+        { "label": "Depth vs. fitted floor", "detail": "…" },
+        { "label": "Floor breaches", "detail": "…" },
+        { "label": "Depth by venue", "detail": "…" }
+      ],
+      "coverage": { "observations": 288, "declaredVenues": 3, "coverageVersion": "v2", "caveats": ["…"] }
+    }
+  ]
+}

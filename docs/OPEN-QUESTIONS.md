@@ -2,7 +2,7 @@
 
 Questions that need Jason's ruling. Nothing that depends on a question is coded before it is answered. Answers are recorded in [DECISIONS.md](DECISIONS.md) and the question is marked closed here, with the date.
 
-**Questions 1 to 12 were closed on 2026-10-07.** Questions 13 and 14 were raised in pass 0a and closed on 2026-10-08. Questions 15 to 18 shaped pass 0b (CI) and were closed on 2026-10-07. Question 19 was found in pass 0b and is open. Questions 20 to 26 shaped pass 1b and were closed on 2026-10-08. Question 27 was found in the first live pull and is open. Question 28 was found in pass 1b and is open. Questions 29 to 38 shaped pass 2a and were closed on 2026-10-27. Questions 39 and 40 were found in pass 2a and are open. Questions 41 and 42 were found in the pass 2a review and closed on 2026-10-27. New questions are appended to the second table with the next number and status `open`.
+**Questions 1 to 12 were closed on 2026-10-07.** Questions 13 and 14 were raised in pass 0a and closed on 2026-10-08. Questions 15 to 18 shaped pass 0b (CI) and were closed on 2026-10-07. Question 19 was found in pass 0b and is open. Questions 20 to 26 shaped pass 1b and were closed on 2026-10-08. Question 27 was found in the first live pull and is open. Question 28 was found in pass 1b and is open. Questions 29 to 38 shaped pass 2a and were closed on 2026-10-27. Questions 39 and 40 were found in pass 2a and are open. Questions 41 and 42 were found in the pass 2a review and closed on 2026-10-27. Questions 43 to 51 shaped pass 2b and were closed on 2026-10-27. New questions are appended to the second table with the next number and status `open`.
 
 Statuses: `open`, `closed`.
 
@@ -57,6 +57,15 @@ Statuses: `open`, `closed`.
 | Q40 | **What `HISTORY_DAYS` sets.** RUNBOOK says "days of history pulled and past reports fed in", but the catalogue's history calls send a fixed `hours=168` and `historyStart` is fixed at 168 hours (T-34). | With any value other than 7, the setting and the pull disagree. | Pass 6a (past reports) | Settle with question 27, which reworks the history calls: either `pull.py` reads `HISTORY_DAYS`, or RUNBOOK says it sets the past reports only. | open |
 | Q41 | **`failedCalls` from a pack whose rows and records do not pair.** A failure record with no manifest row was dropped, and so was a failed row with no record. | Rule 11; `run --date` loads packs from disk in pass 3b. | Pass 2a | A placeholder `error` for a row without a record; records without a row follow by name (T-39) | closed |
 | Q42 | **A 2xx body that is not a JSON object.** Every manifest flag is `null`, so `dataQuality` had no row for it. | Rule 11: the view was skipped silently. | Pass 2a | A `failedCalls` row, found by `derive` from `pack.raw` (T-39) | closed |
+| Q43 | **The comparison base.** `derived.json` holds only `new`, `gone`, `stillOpen`, `changed`. A first run leaves them empty, so the next run would report everything as new; a failed surface's findings would be lost for the run after. | R-DRV-10, and a failed surface is neither new nor gone. | Pass 2b | Store `findings.open` and `corridorTierChanges.tiers`, filled on a first run, carried forward for a surface not read (T-40) | closed |
+| Q44 | **A previous `derived.json` with no base**, as one from pass 2a. | Every finding would be new. | Pass 2b | No base: empty lists, a `note` naming its date; `corridorTierChanges` gains a `note` (T-40) | closed |
+| Q45 | **Which finding objects.** Liquidity bodies carry `finding` (widest band) and `findings[]` (10, 25, 50 bps). The build plan left out `bridge_stargate`, which serves a finding on every 200. | What is compared. | Pass 2b | `findings[]`, and Stargate included: ten surfaces (T-41) | closed |
+| Q46 | **A missing surface.** When is a surface missing, and where is it named? The `Findings` shape had no `surfacesMissing`. | A partly readable body must not produce a false `gone`. | Pass 2b | A list `findings.surfacesMissing`; missing when the call failed or the body does not give every finding with a string id (T-41) | closed |
+| Q47 | **What `changed` compares.** Ids encode the condition, so a tier or kind move is one `gone` and one `new`. | `changed` will be rare. | Pass 2b | Keep id equality; compare `kind` and `severity`; a changed id stays in `stillOpen` (T-42) | closed |
+| Q48 | **Tier change details.** Rows have no timestamp; corridors can appear or leave. | `observedAt` and the null sides. | Pass 2b | `observedAt` is the body's `updatedAt`; a null side for a corridor that appears or leaves (T-43) | closed |
+| Q49 | **Order and repeats.** | Stable lists and golden files. | Pass 2b | Catalogue order, then id; a repeated id keeps its first entry (T-42) | closed |
+| Q50 | **Fixtures.** The spec has no liquidity example body; change cases need variants. | Fixture rule 1 says copied from a spec example. | Pass 2b | Build `liquidity_DAI.json` from the interface; change cases in code | closed |
+| Q51 | **A surface missing with no base to carry.** After a first-run failure, a flat `open` list cannot tell "none open" from "never read". | That surface's findings would all be new the run after. | Pass 2b | `open` is a map by surface; a surface first read is in `open` only and named in the `note`; `tiers` is `null` while unknown (T-40) | closed |
 
 ## Closed
 
@@ -99,3 +108,12 @@ Statuses: `open`, `closed`.
 | Q38 | 2026-10-27 | Skip it with a warning. | DECISIONS T-37 |
 | Q41 | 2026-10-27 | Placeholder `error`; records without a row follow by name. | DECISIONS T-39 |
 | Q42 | 2026-10-27 | A `failedCalls` row, found by `derive`. | DECISIONS T-39 |
+| Q43 | 2026-10-27 | Store the base in `derived.json`, carried forward. | DECISIONS T-40, DATA-CONTRACTS section 3 |
+| Q44 | 2026-10-27 | No base: empty lists and a note naming the date. | DECISIONS T-40 |
+| Q45 | 2026-10-27 | Ten surfaces; liquidity from `findings[]`. | DECISIONS T-41 |
+| Q46 | 2026-10-27 | `findings.surfacesMissing`, strict. | DECISIONS T-41 |
+| Q47 | 2026-10-27 | Id equality; `kind` and `severity`. | DECISIONS T-42 |
+| Q48 | 2026-10-27 | `updatedAt`; null sides. | DECISIONS T-43 |
+| Q49 | 2026-10-27 | Catalogue order, then id; first entry kept. | DECISIONS T-42 |
+| Q50 | 2026-10-27 | DAI built from the interface; change cases in code. | DECISIONS rulings table, tests/fixtures/README.md |
+| Q51 | 2026-10-27 | `open` as a map by surface; `tiers` null while unknown. | DECISIONS T-40 |

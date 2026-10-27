@@ -1,0 +1,129 @@
+{
+  "bridge": "across",
+  "bridgeModel": "HubPool",
+  "capacityLabel": "HubPool TVL",
+  "captured": true,
+  "coverage": { "fetcher": "ok" },
+  "rollup": {
+    "level": "pressure",
+    "score": 0.31,
+    "reason": "bsh_ranked",
+    "bindingChain": "base",
+    "bindingAsset": "USDT",
+    "contributingCount": 2,
+    "unknownCount": 0
+  },
+  "chains": [
+    {
+      "chain": "base",
+      "worstLevel": "pressure",
+      "worstScore": 0.31,
+      "bindingAsset": "USDT",
+      "reason": "bsh_ranked",
+      "assets": [
+        {
+          "asset": "USDT",
+          "level": "pressure",
+          "score": 0.31,
+          "reason": "ratio 0.28 below healthy band",
+          "method": "target_ratio",
+          "underlying": { "currentBalance": 112400, "target": 400000 }
+        },
+        {
+          "asset": "WETH",
+          "level": "healthy",
+          "score": 0.91,
+          "reason": "ratio 0.86",
+          "method": "target_ratio",
+          "underlying": { "currentBalance": 344.2, "target": 400 }
+        }
+      ],
+      "uncomputable": [
+        { "asset": "USDC", "reason": "across_no_published_spoke_target" },
+        { "asset": "DAI",  "reason": "across_no_published_spoke_target" }
+      ]
+    }
+  ],
+  "poolAggregate": {
+    "scope": "bridge_wide",
+    "tvlUsd": 12400000,
+    "availableLiquidity": 9100000,
+    "assets": [
+      { "asset": "DAI", "utilization": 3.9 },
+      { "asset": "USDC", "utilization": 32.39 },
+      { "asset": "USDT", "utilization": 10.5 },
+      { "asset": "WETH", "utilization": 55.1 }
+    ],
+    "expectedAssets": ["DAI", "USDC", "USDT", "WETH"],
+    "contributingAssets": ["DAI", "USDC", "USDT", "WETH"],
+    "missingAssets": [],
+    "recordedAt": "2026-08-28T14:34:00Z",
+    "unavailableReason": null
+  },
+  "finding": {
+    "id": "bridge-across-constrained",
+    "kind": "settlement_constrained",
+    "severity": "elevated",
+    "bridge": "across",
+    "bridgeModel": "HubPool",
+    "level": "pressure",
+    "score": 0.31,
+    "reason": "bsh_ranked",
+    "bindingChain": "base",
+    "bindingAsset": "USDT",
+    "headline": "across settlement is under pressure on base / USDT.",
+    "narrative": {
+      "whatHappened": "The most constrained readable settlement leg is base / USDT, currently under pressure (BSH 0.31).",
+      "comparedWith": "The base spoke holds 112,400 USDT, or 28.1% of its 400,000 USDT target.",
+      "whyItMatters": "The constraint is isolated to one readable settlement leg; the other 1 currently reads healthy."
+    },
+    "nativeCondition": {
+      "kind": "balance_vs_target",
+      "method": "target_ratio",
+      "unit": "token_units",
+      "asset": "USDT",
+      "currentBalance": 112400,
+      "target": 400000,
+      "ratio": 0.281,
+      "text": "The base spoke holds 112,400 USDT, or 28.1% of its 400,000 USDT target."
+    },
+    "breadth": { "concentration": "isolated", "ranked": 2, "impaired": 1, "unknown": 0, "uncomputable": 2 },
+    "capacity": {
+      "scope": "bridge_wide",
+      "applicable": true,
+      "availableLiquidity": 9100000,
+      "tvlUsd": 12400000,
+      "missingAssets": [],
+      "missingValued": [],
+      "missingUnvalued": [],
+      "unavailableReason": null,
+      "text": "Bridge-wide pool: 9,100,000 stablecoin units available · $12,400,000 stablecoin TVL. Available liquidity is an unpriced sum of stablecoin token units, not USD; the two figures can diverge when a constituent depegs. Bridge-wide figures are not attributable to a single corridor."
+    },
+    "detail": [
+      "Bridge health reflects the weakest readable settlement leg, not the average condition of the bridge.",
+      "The base spoke holds 112,400 USDT, or 28.1% of its 400,000 USDT target.",
+      "Balance and target are measured in token units, not USD.",
+      "The constraint is isolated: 1 of 2 readable settlement legs is below healthy.",
+      "2 evaluated · 0 unavailable this read · 2 structurally unmeasurable",
+      "Bridge-wide pool: 9,100,000 stablecoin units available · $12,400,000 stablecoin TVL. Available liquidity is an unpriced sum of stablecoin token units, not USD; the two figures can diverge when a constituent depegs. Bridge-wide figures are not attributable to a single corridor."
+    ],
+    "evidence": [
+      { "label": "Settlement health over time", "detail": "across · base / USDT" },
+      { "label": "Settlement health across legs", "detail": "2 evaluated · 0 unavailable this read · 2 structurally unmeasurable" },
+      { "label": "Operational events", "detail": "attestation degradation · completions stopped · pause/upgrade" }
+    ],
+    "coverage": {
+      "fetcher": "ok",
+      "captured": true,
+      "ranked": 2,
+      "unknown": 0,
+      "uncomputable": 2,
+      "caveats": [
+        "Bridge health reflects the weakest readable settlement leg, not the average condition of the bridge.",
+        "Settlement-health level thresholds are provisional and have not yet been fitted to observed distributions.",
+        "2 chain/asset pairs cannot be measured with this bridge's available data. This is structural, not an outage."
+      ]
+    }
+  },
+  "updatedAt": "2026-08-28T14:35:00Z"
+}

@@ -111,7 +111,7 @@ uv run daily-review run --date YYYY-MM-DD   # reuse that date's saved pack; no p
 | `reports/YYYY-MM-DD.md` | The rendered report |
 | `state/watchlist.json` | The updated watch list |
 
-`pull-only` writes `derived.json` from pass 2a. Its window fields and data quality section are computed; each other statistic says `Not computed yet: pass 2b.` (or 2c, 2d, 2e) in its `missing` until its pass lands (T-35).
+`pull-only` writes `derived.json` from pass 2a. Its window fields and data quality section are computed, and from pass 2b the finding comparison and corridor tier changes; each other statistic says `Not computed yet: pass 2c.` (or 2d, 2e) in its `missing` until its pass lands (T-35). The comparison base is the previous `derived.json`'s `findings.open` and `corridorTierChanges.tiers`; a surface that could not be read keeps its earlier findings there, so it reports nothing as gone (T-40, T-41).
 
 Running twice on one date replaces that date's files: a second pull first removes the date's `raw/`, `failures/` and `manifest.json` (T-30), so the pack is always one pull, and `derived.json` is written again. The previous-run comparison uses the newest earlier date with a usable `derived.json`, never the same date (T-37). `previousRunDate` in `derived.json` names it.
 
@@ -142,6 +142,8 @@ Running twice on one date replaces that date's files: a second pull first remove
 | Manifest row with `rowsAtLimit` or `totalExceedsRows` set | The page was cut at its limit: not an error, a data quality item (R-PULL-4, R-PULL-8) | Expected today on `anomalies_*`, `exceedances`, `spread_history`, `bsh`, `issuer_flows` (question 27) |
 | `previous derived.json skipped: not a JSON object with runDate <date>: <path>` | That date's `derived.json` is damaged, or was edited or copied by hand | The run compared with the next older date instead (`previousRunDate`). Delete the file, or fix its permissions if the message came from a folder that cannot be read; no command rebuilds an earlier date's `derived.json` (T-37) |
 | `derived.json` `dataQuality.failedCalls` row with status 200 and `the body is not a JSON object` | That endpoint answered 2xx with something other than a JSON object: an error page from a proxy, or a body cut short (T-39) | The raw file under `raw/<name>.json`, saved as received; `curl` the path by hand |
+| `derived.json` `findings.note` or `corridorTierChanges.note` says `The previous run (<date>) holds no findings to compare with.` (or `no corridor tiers`) | That date's `derived.json` was written before pass 2b, or its `open` or `tiers` is damaged (T-40) | Nothing: this run fills `open` and `tiers`, and the next run compares as usual |
+| `derived.json` `findings.surfacesMissing` lists a surface | Its call failed (see `dataQuality.failedCalls`), or its body did not give every finding with an id (T-41). Its earlier findings are carried in `findings.open`, never reported gone | If the call failed, as for that failure. If it answered 200, read `raw/<name>.json` against its section in `vendor/API-SPEC.md`: the shape may have changed |
 | `flow_history` failure record with 400 | `hours` or `limit` not an integer in range (`hours` 1 to 720, `limit` 1 to 5000) | The catalogue value in `pull.py`; the 400 body states the range |
 | Many failure records with the same HTTP status | App restarted mid-run | Run again |
 | Exit 3 with a schema error | The model's JSON did not validate, or `max_tokens` was hit | The log shows the stop reason and the validation message. If `max_tokens`, raise `MAX_OUTPUT_TOKENS`. |
