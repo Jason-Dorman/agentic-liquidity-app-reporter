@@ -13,8 +13,9 @@ from urllib.parse import urlsplit
 
 from daily_review.client import Client, Getter, TunnelDown
 from daily_review.config import Settings, SettingsError, settings_from_environment
+from daily_review.derive import derive
 from daily_review.pull import DataPack, Healthy, check_health, pull
-from daily_review.store import pack_paths, save_pack
+from daily_review.store import load_previous_derived, pack_paths, save_derived, save_pack
 
 # Exit codes (T-09).
 OK = 0
@@ -119,7 +120,7 @@ def _report_pull(pack: DataPack) -> int:
 
 
 def _pull_only(wiring: Wiring) -> int:
-    """Health, pull, save (pass 1b). The derive step lands in pass 2a."""
+    """Health, pull, save the pack, derive, save derived.json; even after a tunnel down (T-38)."""
     started = wiring.now()  # "today" ends here (T-16)
     try:
         settings = wiring.load_settings()
@@ -132,8 +133,11 @@ def _pull_only(wiring: Wiring) -> int:
         return health
     host = urlsplit(settings.blockford_api_base_url).hostname or ""
     pack = pull(client, started, host, wiring.now)
-    paths = pack_paths(wiring.root(), date.fromisoformat(pack.manifest["runDate"]))
+    root = wiring.root()
+    run_date = date.fromisoformat(pack.manifest["runDate"])
+    paths = pack_paths(root, run_date)
     save_pack(paths, pack.raw, pack.failures, pack.manifest)
+    save_derived(paths, derive(pack, load_previous_derived(root, run_date)))
     log.info("pack saved: %s", paths.root)
     return _report_pull(pack)
 

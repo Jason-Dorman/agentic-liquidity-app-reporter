@@ -1,6 +1,6 @@
 # Test fixtures
 
-Every fixture here is cut from an example in [`vendor/API-SPEC.md`](../../vendor/API-SPEC.md). No fixture is copied from a live response. Fixtures hold no real depth figures beyond what the API spec itself shows.
+Every response fixture here is cut from an example in [`vendor/API-SPEC.md`](../../vendor/API-SPEC.md). No fixture is copied from a live response. The `derived/` files are golden outputs: each is what `derive` gives for a pack built in code in `tests/test_derive.py`. Fixtures hold no real depth figures beyond what the API spec itself shows.
 
 ## Rules
 
@@ -30,4 +30,4 @@ tests/fixtures/
 
 | File | Spec section | Change from the spec example |
 |---|---|---|
-| *(none yet; milestone 2 passes add them)* | | |
+| `derived/first-run.json` | none: golden output, not an API example | `derive(golden_pack(), None)` in `tests/test_derive.py`, written with `store.write_json`. Regenerate it only when the `Derived` shape changes, and read the diff by hand (pass 2a). |

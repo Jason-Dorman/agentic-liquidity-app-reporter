@@ -93,7 +93,7 @@ flowchart LR
 Other commands, with the `uv` command each target runs:
 
 ```bash
-make pull                     # uv run daily-review pull-only: save the data pack (derived.json from pass 2a), no agent
+make pull                     # uv run daily-review pull-only: save the data pack and derived.json, no agent
 make render DATE=YYYY-MM-DD   # uv run daily-review render reports/YYYY-MM-DD.json; without DATE it prints the usage and fails
 make help                     # list every target
 uv run daily-review run --date YYYY-MM-DD   # reuse that date's saved pack; no pull. No make target; it is the exception, not the routine.
@@ -111,7 +111,9 @@ uv run daily-review run --date YYYY-MM-DD   # reuse that date's saved pack; no p
 | `reports/YYYY-MM-DD.md` | The rendered report |
 | `state/watchlist.json` | The updated watch list |
 
-Running twice on one date replaces that date's files: a second pull first removes the date's `raw/`, `failures/` and `manifest.json` (T-30), so the pack is always one pull. The previous-run comparison uses the most recent earlier date, not the same date.
+`pull-only` writes `derived.json` from pass 2a. Its window fields and data quality section are computed; each other statistic says `Not computed yet: pass 2b.` (or 2c, 2d, 2e) in its `missing` until its pass lands (T-35).
+
+Running twice on one date replaces that date's files: a second pull first removes the date's `raw/`, `failures/` and `manifest.json` (T-30), so the pack is always one pull, and `derived.json` is written again. The previous-run comparison uses the newest earlier date with a usable `derived.json`, never the same date (T-37). `previousRunDate` in `derived.json` names it.
 
 ## 5. Exit codes
 
@@ -119,7 +121,7 @@ Running twice on one date replaces that date's files: a second pull first remove
 |---|---|---|
 | 0 | Report written (`pull-only`: pack saved). Endpoint failures, if any, are in the data quality section, and in `failures/` and the manifest. | Read the report. |
 | 1 | Bad or missing setting, or a usage error: unknown command, missing argument, or a `--date` that is not a real `YYYY-MM-DD` date (T-23). | Fix `.env`, or the command line. The message names the problem. |
-| 2 | `/health` unreachable, or it answered with something that is not the API: nothing written. Or (`pull-only`) a call during the pull was "tunnel down": the pack is saved with its failure records (T-31). | Read the message: "tunnel down" means reopen the port-forward (section 1.1); an HTTP status, a timeout or "not a JSON object" means check the app and the port. Run again. |
+| 2 | `/health` unreachable, or it answered with something that is not the API: nothing written. Or (`pull-only`) a call during the pull was "tunnel down": the pack is saved with its failure records, and `derived.json` lists them (T-31, T-38). | Read the message: "tunnel down" means reopen the port-forward (section 1.1); an HTTP status, a timeout or "not a JSON object" means check the app and the port. Run again. |
 | 3 | Claude call failed, refused, hit `max_tokens`, or the JSON did not validate. Data pack kept. | Read the log. Run again. The pack for the date is already saved, so `run --date YYYY-MM-DD` reuses it without pulling again. |
 
 ## 6. Troubleshooting
@@ -138,6 +140,8 @@ Running twice on one date replaces that date's files: a second pull first remove
 | `api_get` results saying "tunnel down" mid-run | The tunnel closed during the agent's turn | Reopen it and run again |
 | `pull: <name> failed: timeout: no answer from ... within 30 s` | That endpoint is slow. On 2026-10-08 the liquidity reads took 5 to 15 s each and the whole pull about 95 s | Run again; if the same endpoint times out every day, tell Jason (the timeout is `DEFAULT_TIMEOUT` in `client.py`, T-26) |
 | Manifest row with `rowsAtLimit` or `totalExceedsRows` set | The page was cut at its limit: not an error, a data quality item (R-PULL-4, R-PULL-8) | Expected today on `anomalies_*`, `exceedances`, `spread_history`, `bsh`, `issuer_flows` (question 27) |
+| `previous derived.json skipped: not a JSON object with runDate <date>: <path>` | That date's `derived.json` is damaged, or was edited or copied by hand | The run compared with the next older date instead (`previousRunDate`). Delete the file, or fix its permissions if the message came from a folder that cannot be read; no command rebuilds an earlier date's `derived.json` (T-37) |
+| `derived.json` `dataQuality.failedCalls` row with status 200 and `the body is not a JSON object` | That endpoint answered 2xx with something other than a JSON object: an error page from a proxy, or a body cut short (T-39) | The raw file under `raw/<name>.json`, saved as received; `curl` the path by hand |
 | `flow_history` failure record with 400 | `hours` or `limit` not an integer in range (`hours` 1 to 720, `limit` 1 to 5000) | The catalogue value in `pull.py`; the 400 body states the range |
 | Many failure records with the same HTTP status | App restarted mid-run | Run again |
 | Exit 3 with a schema error | The model's JSON did not validate, or `max_tokens` was hit | The log shows the stop reason and the validation message. If `max_tokens`, raise `MAX_OUTPUT_TOKENS`. |
@@ -171,12 +175,18 @@ The run logs to stderr with the standard `logging` module, one line per event, e
 
 The `httpx` library's own request lines are held back (its logger is set to WARNING), since they print the full URL. A bad-settings message is one line that names every bad setting.
 
-After the health line, the pull logs where the pack was saved, then one WARNING per failed call (its name and the first 300 characters of its error, on one line; the whole error is in its failure record), then a summary. If any call was "tunnel down", two ERROR lines follow: `tunnel down during the pull; ...` and the tunnel hint.
+After the health line, the pull logs where the pack was saved (with `derived.json` in it, T-38), then one WARNING per failed call (its name and the first 300 characters of its error, on one line; the whole error is in its failure record), then a summary. If any call was "tunnel down", two ERROR lines follow: `tunnel down during the pull; ...` and the tunnel hint.
 
 ```
 2026-10-08T05:22:05Z INFO pack saved: /home/jdorman/projects/custom_agents/liquidity_read_agent/data/2026-10-08
 2026-10-08T05:22:05Z WARNING pull: bsh failed: timeout: no answer from /bsh within 30 s
 2026-10-08T05:22:05Z INFO pull: 23 calls, 22 ok, 1 failed (timeout 1)
+```
+
+If an earlier date's `derived.json` cannot be used as the previous run, one WARNING names it before the `pack saved` line (T-37):
+
+```
+2026-10-08T05:22:05Z WARNING previous derived.json skipped: not a JSON object with runDate 2026-10-07: /home/jdorman/projects/custom_agents/liquidity_read_agent/data/2026-10-07/derived.json
 ```
 
 Each call's status and bytes are in `manifest.json`, not the log. Later steps add: each Messages API request with stop reason and usage; each tool call with path, query, status, bytes, cut or not; each upload and delete. No log line contains the API key or a request body.

@@ -353,3 +353,78 @@ def test_the_pack_goes_under_the_root_the_wiring_names(tmp_path, empty_cwd):
     assert main(["pull-only"], built) == 0
     assert saved(root).manifest.exists()
     assert not (empty_cwd / "data").exists()
+
+
+# pull-only derives and saves derived.json (pass 2a).
+
+
+def derived_of(root, day=None):
+    day = day or STARTED.date()
+    return json.loads(pack_paths(root, day).derived.read_text("utf-8"))
+
+
+def test_pull_only_writes_a_first_run_derived_json_whose_data_quality_matches_the_manifest(
+    empty_cwd,
+):
+    """Pass 2a done-when. R-RUN-6: pull-only writes the pack and derived.json, no Messages API."""
+    client = FakeClient(
+        [
+            ((HEALTH_PATH, None), ok(HEALTH_BODY)),
+            (("/bsh", {"hours": 168, "limit": 5000}), HttpError(500, {}, b"boom")),
+        ],
+        default=ok(),
+    )
+    built = Wiring(
+        load_settings=lambda: load_settings({}),
+        make_client=lambda settings: client,
+        now=lambda: STARTED,
+    )
+    assert main(["pull-only"], built) == 0
+    paths = saved(empty_cwd)
+    manifest = json.loads(paths.manifest.read_text("utf-8"))
+    derived = derived_of(empty_cwd)
+    assert derived["firstRun"] is True
+    assert derived["previousRunDate"] is None
+    assert derived["windowEnd"] == manifest["windowEnd"] == "2026-10-07T06:00:00Z"
+    failed = [call["name"] for call in manifest["calls"] if not call["ok"]]
+    assert [row["name"] for row in derived["dataQuality"]["failedCalls"]] == failed == ["bsh"]
+    assert derived["dataQuality"]["failedCalls"][0]["error"] == "boom"
+
+
+def test_the_next_days_pull_compares_with_the_day_before(empty_cwd):
+    built, _ = wiring(ok(HEALTH_BODY))
+    main(["pull-only"], built)
+    next_day = datetime(2026, 10, 8, 6, 0, 0, tzinfo=UTC)
+    built = Wiring(
+        load_settings=built.load_settings,
+        make_client=built.make_client,
+        now=lambda: next_day,
+    )
+    assert main(["pull-only"], built) == 0
+    derived = derived_of(empty_cwd, next_day.date())
+    assert derived["firstRun"] is False
+    assert derived["previousRunDate"] == "2026-10-07"
+
+
+def test_a_re_pull_on_the_same_date_rebuilds_derived_json_without_comparing_with_itself(
+    empty_cwd,
+):
+    """T-30 leaves derived.json to pass 2a; RUNBOOK section 4: never the same date."""
+    built, _ = wiring(ok(HEALTH_BODY))
+    main(["pull-only"], built)
+    down = TunnelDown("tunnel down: connection refused at localhost:3300")
+    built, _ = wiring(ok(HEALTH_BODY), rest=down)
+    main(["pull-only"], built)
+    derived = derived_of(empty_cwd)
+    assert derived["firstRun"] is True
+    assert len(derived["dataQuality"]["failedCalls"]) == 22
+
+
+def test_a_tunnel_down_pull_still_writes_derived_json_and_exits_two(empty_cwd):
+    """T-38: derived.json names every tunnel-down call; the exit code stays 2 (T-31)."""
+    down = TunnelDown("tunnel down: connection refused at localhost:3300")
+    built, _ = wiring(ok(HEALTH_BODY), rest=down)
+    assert main(["pull-only"], built) == 2
+    failed = derived_of(empty_cwd)["dataQuality"]["failedCalls"]
+    assert len(failed) == 22
+    assert all(row["status"] is None and row["error"].startswith("tunnel down:") for row in failed)

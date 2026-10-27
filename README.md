@@ -4,7 +4,7 @@ A read-only script that runs once a day. It pulls the last day of data from the 
 
 The review is for Jason's own reading. It is also the first step toward agents that understand the on-chain landscape before they act.
 
-**Status:** scaffold. Pass 0a is done (2026-10-07): the package, settings, CLI stubs and `make` targets are in place, and the commands parse but do nothing yet. Pass 0b is done (2026-10-08): GitHub Actions runs `make check` on every push and pull request. Milestone 0 is done. Milestone 1 is done (2026-10-08): `make pull` checks `/health`, pulls the 23 endpoints and saves the data pack under `data/YYYY-MM-DD/` with a manifest and a failure record per failed call; it exits 2 with "tunnel down" when the port-forward is closed. `derived.json` comes in pass 2a ([docs/BUILD-PLAN.md](docs/BUILD-PLAN.md)). Open questions are in [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md).
+**Status:** scaffold. Pass 0a is done (2026-10-07): the package, settings, CLI stubs and `make` targets are in place, and the commands parse but do nothing yet. Pass 0b is done (2026-10-08): GitHub Actions runs `make check` on every push and pull request. Milestone 0 is done. Milestone 1 is done (2026-10-08): `make pull` checks `/health`, pulls the 23 endpoints and saves the data pack under `data/YYYY-MM-DD/` with a manifest and a failure record per failed call; it exits 2 with "tunnel down" when the port-forward is closed. Pass 2a is done (2026-10-27): `make pull` also writes `derived.json` with the window fields and the data quality section; the other statistics come in passes 2b to 2e ([docs/BUILD-PLAN.md](docs/BUILD-PLAN.md)). Open questions are in [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md).
 
 ## How one run works
 

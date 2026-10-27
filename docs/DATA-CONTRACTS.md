@@ -122,13 +122,15 @@ What the live pull of 2026-10-08 recorded: `bridge_stargate` `coverage.fetcher` 
 
 | Input | Source | When absent |
 |---|---|---|
-| Previous `derived.json` | the most recent `data/*/derived.json` before today | first run: `previousRunDate` is `null`, `firstRun` is `true` |
+| Previous `derived.json` | the newest `data/<YYYY-MM-DD>/derived.json` dated before today that is usable: a JSON object whose `runDate` is its folder's date (T-37). A pack without one is passed over; an unusable one is logged as a WARNING and passed over. No age limit: `previousRunDate` names the date. | first run: `previousRunDate` is `null`, `firstRun` is `true` |
 | Last 7 reports | `reports/*.json`, the 7 most recent before today | fewer or none: pass what exists |
 | Watch list | `state/watchlist.json` | empty list |
 
 ## 3. `derived.json`
 
-Computed by `derive.py`. One key per statistic in spec section 6. Every statistic carries its window. Where a source value is null, the derived value is null and `missing` says why.
+Computed by `derive.py` and written by `pull-only` from pass 2a (T-38). One key per statistic in spec section 6. Every statistic carries its window. Where a source value is null, the derived value is null and `missing` says why.
+
+The window fields and `dataQuality` are computed from pass 2a. Each other statistic holds its shape below with empty maps and lists, null scalars, and `missing` set to `Not computed yet: pass 2b.` (or 2c, 2d, 2e) until its pass lands (T-35).
 
 ```json
 {
@@ -145,30 +147,35 @@ Computed by `derive.py`. One key per statistic in spec section 6. Every statisti
     "gone": [{"id": "...", "surface": "...", "kind": "...", "severity": "..."}],
     "stillOpen": [{"id": "...", "surface": "...", "kind": "...", "severity": "..."}],
     "changed": [{"id": "...", "field": "severity", "from": "...", "to": "..."}],
-    "note": "First run: no previous run to compare with."
+    "note": "First run: no previous run to compare with.",
+    "missing": null
   },
 
-  "corridorTierChanges": [
-    {"corridor": "...", "from": "...", "to": "...", "observedAt": "..."}
-  ],
+  "corridorTierChanges": {
+    "changes": [{"corridor": "...", "from": "...", "to": "...", "observedAt": "..."}],
+    "missing": null
+  },
 
   "anomalies": {
     "window": "24h, filtered in code by detectedAt and resolvedAt",
     "openCount": 0,
     "opened": [{"id": "...", "detectedAt": "...", "kind": "..."}],
-    "resolved": [{"id": "...", "resolvedAt": "...", "kind": "..."}]
+    "resolved": [{"id": "...", "resolvedAt": "...", "kind": "..."}],
+    "missing": null
   },
 
   "exceedances": {
     "bySeries": {
       "<series>": {"today": 0, "dailyAverage7d": 0.0, "daysWithData": 7}
-    }
+    },
+    "missing": null
   },
 
   "settlementHealth": {
     "byBridge": {"<bridge>": {"todayMin": null, "todayMedian": null, "weekMin": null, "weekMedian": null, "missing": "no rows in window"}},
     "byChain": {},
-    "byAsset": {}
+    "byAsset": {},
+    "missing": null
   },
 
   "depth": {
@@ -177,25 +184,29 @@ Computed by `derive.py`. One key per statistic in spec section 6. Every statisti
       "<asset>": {
         "<band>": {"todayMin": null, "weekMedian": null, "threshold": null, "thresholdSource": "/depth?latest=true field <name>", "missing": null}
       }
-    }
+    },
+    "missing": null
   },
 
   "peg": {
-    "byAsset": {"<asset>": {"todayMin": null, "todayMax": null, "missing": null}}
+    "byAsset": {"<asset>": {"todayMin": null, "todayMax": null, "missing": null}},
+    "missing": null
   },
 
   "flowHistory": {
     "note": "Write-on-change source. A gap is a held status. carry_in rows are window-head state, never transitions. No magnitudes.",
     "byChain": {
       "<chain>": {"state": "transitions_observed", "transitionsInWindow": 0, "currentStatus": "...", "statusSince": "...", "carryIn": false, "missing": null}
-    }
+    },
+    "missing": null
   },
 
   "issuerFlows": {
     "note": "Totals by asset, event type, and flow class. No gross sum.",
     "byAsset": {
       "<asset>": {"<eventType>": {"<flowClass>": {"total": 0, "count": 0, "unit": "token"}}}
-    }
+    },
+    "missing": null
   },
 
   "dataQuality": {
@@ -209,10 +220,13 @@ Computed by `derive.py`. One key per statistic in spec section 6. Every statisti
 
 Rules the shape enforces:
 
-- `firstRun: true` comes with empty `new`, `gone`, `stillOpen`, `changed` lists and a `note`. Nothing is reported as new.
+- `runDate`, `windowStart` and `windowEnd` are the manifest's. `historyStart` is `windowEnd` less 168 hours, the hours the catalogue pulls, whatever `HISTORY_DAYS` says (T-34, question 40). `previousRunDate` is the previous `derived.json`'s `runDate` (section 2).
+- `firstRun: true` comes with empty `new`, `gone`, `stillOpen`, `changed` lists and a `note`. Nothing is reported as new. On a later run `note` is `null` unless pass 2b sets one.
+- Every statistic section carries `missing`: `null` once computed, else a sentence. `corridorTierChanges` is an object, not a bare list, so it can say why `changes` is empty (T-35).
 - `depth.byAsset.<asset>.<band>` entries are separate figures. No key holds a sum across bands or venues.
 - `issuerFlows` has no total above the `flowClass` level. `unit` is `token` unless the source field is marked USD.
 - Every `missing` is a sentence that says what is absent and why, or `null` when nothing is missing.
+- `dataQuality` rows follow manifest order (T-36). `failedCalls`: one per failure record, its `error` kept whole; also one per failed manifest row without its record (`error`: `no failure record in the pack`), one per 2xx call whose raw body is not a JSON object (`error`: `answered <status>, but the body is not a JSON object; nothing in it can be read`), and after the manifest rows, by name, one per failure record that has no manifest row (T-39). `truncations`: one per cause, so a call can have two. A manifest row with `truncated: true` gives the note `The response says it was cut: <truncatedAt paths> is true.` for one path, `... are true.` for several; one with `rowsAtLimit` set gives `Rows served (<rows>) reached the limit (<limit>); the page may be cut.` `coverageFailures`: one per `coverageNotOk` entry, with `state` its value, `null` for an absent leg. `partialTotals`: one per `totalExceedsRows` object. `flow_history.retry` has its own manifest row, so its own rows. A `truncated: null` gives no row, even when a declared flag was absent (question 39).
 - `flowHistory.byChain.<chain>.state` is the spec's `chains[]` state verbatim (`transitions_observed`, `unchanged_in_window`, `unknown_truncated`, `no_history`, `excluded_by_filter`). For `unknown_truncated` and `no_history`, `transitionsInWindow` is `null` and `missing` says why. `currentStatus` and `statusSince` come from the newest row; `carryIn` is `true` when that row is the carry-in row. No `flowRatio` or `netFlowUsd` appears here.
 
 The exact field names on the API side (`recommendation`, `detectedAt`, `resolvedAt`, `severity`, `kind`, `truncated`, `coverage`, `total`) are those the spec names. Any other field name is confirmed against the vendored `API-SPEC.md` before it is coded.

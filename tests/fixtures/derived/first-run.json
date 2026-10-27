@@ -1,0 +1,97 @@
+{
+  "anomalies": {
+    "missing": "Not computed yet: pass 2c.",
+    "openCount": null,
+    "opened": [],
+    "resolved": [],
+    "window": "24h, filtered in code by detectedAt and resolvedAt"
+  },
+  "corridorTierChanges": {
+    "changes": [],
+    "missing": "Not computed yet: pass 2b."
+  },
+  "dataQuality": {
+    "coverageFailures": [
+      {
+        "leg": "coverage.fetcher",
+        "name": "bridge_stargate",
+        "state": "not_monitored"
+      }
+    ],
+    "failedCalls": [
+      {
+        "endpoint": "/corridors",
+        "error": "{\"error\":{\"code\":\"X\"}}",
+        "name": "corridors",
+        "status": 500
+      },
+      {
+        "endpoint": "/bsh",
+        "error": "timeout: no answer from /bsh within 30 s",
+        "name": "bsh",
+        "status": null
+      }
+    ],
+    "partialTotals": [
+      {
+        "name": "anomalies_open",
+        "rows": 500,
+        "total": 5333
+      }
+    ],
+    "truncations": [
+      {
+        "name": "anomalies_open",
+        "note": "Rows served (500) reached the limit (500); the page may be cut."
+      },
+      {
+        "name": "liquidity_USDC",
+        "note": "The response says it was cut: exceedances.truncated is true."
+      }
+    ]
+  },
+  "depth": {
+    "byAsset": {},
+    "missing": "Not computed yet: pass 2e.",
+    "note": "Bands are nested. Each band is its own figure. Never summed."
+  },
+  "exceedances": {
+    "bySeries": {},
+    "missing": "Not computed yet: pass 2c."
+  },
+  "findings": {
+    "changed": [],
+    "gone": [],
+    "missing": "Not computed yet: pass 2b.",
+    "new": [],
+    "note": "First run: no previous run to compare with.",
+    "stillOpen": [],
+    "surfaces": []
+  },
+  "firstRun": true,
+  "flowHistory": {
+    "byChain": {},
+    "missing": "Not computed yet: pass 2c.",
+    "note": "Write-on-change source. A gap is a held status. carry_in rows are window-head state, never transitions. No magnitudes."
+  },
+  "historyStart": "2026-09-30T06:00:00Z",
+  "issuerFlows": {
+    "byAsset": {},
+    "missing": "Not computed yet: pass 2e.",
+    "note": "Totals by asset, event type, and flow class. No gross sum."
+  },
+  "peg": {
+    "byAsset": {},
+    "missing": "Not computed yet: pass 2d."
+  },
+  "previousRunDate": null,
+  "runDate": "2026-10-07",
+  "settlementHealth": {
+    "byAsset": {},
+    "byBridge": {},
+    "byChain": {},
+    "missing": "Not computed yet: pass 2d."
+  },
+  "windowEnd": "2026-10-07T06:00:00Z",
+  "windowStart": "2026-10-06T06:00:00Z"
+}

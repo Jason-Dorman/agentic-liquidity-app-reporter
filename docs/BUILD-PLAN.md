@@ -1,7 +1,7 @@
 # Build Plan — Blockford Daily Review
 
-**Version:** 0.5 (2026-10-08)
-**Status:** milestone 0 done on 2026-10-08: pass 0a on 2026-10-07, pass 0b (CI) on 2026-10-08, with its red-branch check and branch protection waived by Jason. Milestone 1 done on 2026-10-08: pass 1a when its live check passed with the tunnel open, pass 1b with its exit check against the live API. Pass 2a is next; passes 2c to 2e wait on question 27.
+**Version:** 0.6 (2026-10-27)
+**Status:** milestone 0 done on 2026-10-08: pass 0a on 2026-10-07, pass 0b (CI) on 2026-10-08, with its red-branch check and branch protection waived by Jason. Milestone 1 done on 2026-10-08: pass 1a when its live check passed with the tunnel open, pass 1b with its exit check against the live API. Milestone 2 is in progress: pass 2a done on 2026-10-27. Pass 2b is next; passes 2c to 2e wait on question 27.
 
 Spec section 12 sets the order: six steps, each ending with a check before the next starts, then a week of reading. Those are the **milestones** here, with their exit checks unchanged. Each milestone is split into **passes** on module boundaries, so that one pass is small enough to write, test, review and commit in one sitting, and no pass touches code another pass owns. Jason ruled this split on 2026-10-07.
 
@@ -53,6 +53,7 @@ flowchart TD
     class P0b done
     class P1a done
     class P1b done
+    class P2a done
 ```
 
 Green is done. Yellow is in progress. Uncoloured is not started.
@@ -63,7 +64,7 @@ Green is done. Yellow is in progress. Uncoloured is not started.
 |---|---|---|
 | 0 Scaffold | 0a, 0b | **done** 2026-10-08 |
 | 1 Pull | 1a, 1b | **done** 2026-10-08 |
-| 2 Derive | 2a to 2e | not started |
+| 2 Derive | 2a to 2e | in progress |
 | 3 Agent without tools | 3a to 3c | not started |
 | 4 `api_get` | 4a, 4b | not started |
 | 5 Code execution | 5a, 5b | not started |
@@ -76,7 +77,7 @@ Green is done. Yellow is in progress. Uncoloured is not started.
 | 0b | `.github/workflows/check.yml`, test network guard, repository rule tests | — (Q15 to Q18 ruled 2026-10-07) | **done** 2026-10-08. Milestone 0 exit check (2026-10-08 UTC): pass 0a's done-when line holds; `vendor/API-SPEC.md` is present with its copy header (`tests/test_layout.py`); workflow `check` green on GitHub Actions for PR #1 (push and pull_request runs) and on `main` after the merge (run 37720954382, commit `f4adc3b`). The red-branch check and branch protection (task 6) were waived by Jason; task 6 stays open as a follow-up. |
 | 1a | `client.py`, `store.py` (pack paths and save), health check | — (Q13, Q14 ruled 2026-10-08) | **done** 2026-10-08 |
 | 1b | `pull.py` catalogue, manifest, failure records, `flow_history` retry | — (pass 1a done; Q20 to Q26 ruled 2026-10-08, T-29 to T-32) | **done** 2026-10-08. Milestone 1 exit check (2026-10-08 05:20 UTC): `uv run daily-review pull-only` with the tunnel open logged `pull: 23 calls, 23 ok, 0 failed` and exited 0; `data/2026-10-08/` holds 23 raw files and no failure records, and `manifest.json` has 23 rows (no retry: `flow_history` was not truncated). |
-| 2a | `derive.py` skeleton, windows, first run, data quality; fixture conventions | — | not started |
+| 2a | `derive.py` skeleton, windows, first run, data quality; fixture conventions | — (Q29 to Q38 ruled 2026-10-27, T-33 to T-38; review fixes and Q41, Q42, T-39 ruled 2026-10-27) | **done** 2026-10-27 |
 | 2b | Finding comparison, corridor tier changes | — | not started |
 | 2c | Anomalies, exceedances, flow history | Q27: cover the full 168 hours | not started |
 | 2d | Settlement health, peg | Q27: cover the full 168 hours | not started |
@@ -212,23 +213,27 @@ Tests: all 23 succeed; one fails with 400 and the others proceed; one times out;
 
 **Review (2026-10-15):** an adversarial review of the pass, four lenses with an independent skeptic per finding, raised 22 findings: 9 confirmed, all low, none a wrong behaviour of the code. On Jason's ruling the seven distinct defects were fixed in this pass. Five were docs that disagreed with the code or the rulings: DATA-CONTRACTS 1.2 on `rowsAtLimit` (echoed limit, T-32); R-PULL-8, DATA-CONTRACTS 1.2 and T-29 naming `bsh` as flagless; an impossible failure record example in DATA-CONTRACTS 1.1; the RUNBOOK log order. Four were missing tests: the whole error kept on disk, one log line per failure, and a `coverage.legs` that is not an object. Each new test was checked by a mutation on a scratch copy, and each mutation now fails the suite. `make check`: lint clean, 241 tests passed. Not ruled in, and open as a follow-up: a test pinning the catalogue's declared paths to DATA-CONTRACTS 1.3.
 
-## Milestone 2 — Derive (not started)
+## Milestone 2 — Derive (in progress)
 
 **Goal:** `derived.json` from the pack and the previous run. Each pass cuts the fixtures it needs from `vendor/API-SPEC.md` and adds them under `tests/fixtures/responses/`.
 
-### Pass 2a — skeleton, first run, data quality (not started)
+### Pass 2a — skeleton, first run, data quality (done 2026-10-27)
 
 Tasks:
 
-1. [ ] `derive.py`: the `Derived` shape from [DATA-CONTRACTS.md](DATA-CONTRACTS.md) section 3 as a typed value; `derive(pack, previous)` that fills the window fields (`runDate`, `windowStart`, `windowEnd`, `historyStart`, `previousRunDate`, `firstRun`) and calls one function per statistic, each a stub returning its empty part until its pass lands.
-2. [ ] The data quality part: `failedCalls`, `truncations`, `coverageFailures`, `partialTotals` from the manifest and failure records.
-3. [ ] `store.py`: load the most recent earlier `derived.json`; save today's.
-4. [ ] `cli.py` `pull-only` also derives and saves.
-5. [ ] Fixture conventions: one file per endpoint example, named as in [TESTING.md](TESTING.md) section 5, each with a comment line naming its spec section.
+1. [x] `derive.py`: the `Derived` shape from [DATA-CONTRACTS.md](DATA-CONTRACTS.md) section 3 as a typed value (`TypedDict`, T-33); `derive(pack, previous)` that fills the window fields (`runDate`, `windowStart`, `windowEnd`, `historyStart`, `previousRunDate`, `firstRun`) and calls one function per statistic, each a stub returning its empty part, with a `missing` naming its pass, until its pass lands (T-35).
+2. [x] The data quality part: `failedCalls`, `truncations`, `coverageFailures`, `partialTotals` from the manifest and failure records (T-36).
+3. [x] `store.py`: load the most recent earlier `derived.json`; save today's (T-37).
+4. [x] `cli.py` `pull-only` also derives and saves, also after a tunnel-down call (T-38).
+5. [x] Fixture conventions: one file per endpoint example, named as in [TESTING.md](TESTING.md) section 5, with its spec section in the index table of `tests/fixtures/README.md`, since JSON holds no comment line (Q35). Pass 2a builds its packs in code and adds the golden `tests/fixtures/derived/first-run.json`.
 
 Tests: first run gives `firstRun: true`, `previousRunDate: null`, empty comparison lists, and the note; a pack with a failure record and a truncation produces the matching data quality rows; `derived.json` is written with sorted keys.
 
 **Done when:** `pull-only` writes a `derived.json` whose data quality section matches the manifest.
+
+**Outcome (2026-10-27 UTC):** done. Before any code, Jason ruled questions 29 to 38, which became T-33 to T-38. `derive.py` holds the `Derived` shape as `TypedDict` types and a `Pack` Protocol that `pull.DataPack` fits. It fills the window fields, with `historyStart` 168 hours before `windowEnd`, and builds the data quality rows from the manifest and the failure records. The nine other statistics are stubs whose `missing` names their pass; `corridorTierChanges` is now an object with `changes` and `missing`. `store.py` saves `derived.json` and finds the previous one, skipping an unusable file with a warning. `pull-only` derives and saves after the pack, also after a tunnel-down call. `make check` gives lint clean and 280 tests passed (241 before this pass). The tunnel was closed (`pull-only` exited 2 at the health check, 2026-10-27 02:11 UTC), so there was no live pull. This pass's done-when line does not ask for one; the cli tests show it with a fake client. As an extra check, `derive` was run in memory over the saved live pack of 2026-10-08, writing nothing: its `dataQuality` held 11 truncation rows, 1 coverage row (`bridge_stargate` `not_monitored`) and 2 partial totals, one per flag in that manifest (section 1.3 of DATA-CONTRACTS). Two follow-ups were raised as open questions: 39 (an absent declared truncation flag gives no row) and 40 (what `HISTORY_DAYS` sets). Neither blocks pass 2b.
+
+**Review (2026-10-27 UTC):** an adversarial review of the pass, four lenses with an independent skeptic per finding, raised 13 findings and confirmed 10, all low; three were the same doc error, so six were distinct. On Jason's ruling all six were fixed in this pass: `store.load_previous_derived` crashed on an earlier pack folder that could not be searched (Python 3.11 `Path.exists` raises `PermissionError`), so pull-only lost `derived.json` and exit 2; the read now treats that as an unusable file. RUNBOOK told the reader to rebuild an old date's `derived.json` with `make pull`, which cannot target a date. This outcome said eight stubs, not nine. DATA-CONTRACTS gave the truncation note with `is` only. Pass 2a was dated 2026-10-26, local time, not UTC. Three tests were missing (a bad date folder beside a usable older pack, a `derived.json` nested too deep to parse, a `derived.json` that is a folder), plus one for the permission case. Two refuted findings were real gaps that no ruling covered, and Jason ruled both fixed now (questions 41 and 42, T-39): `failedCalls` also lists a failed manifest row without its record, and a record without a manifest row; and a 2xx body that is not a JSON object is a failed call. Each new test was checked by a mutation on a scratch copy, and each mutation now fails the suite. `make check`: lint clean, 292 tests passed.
 
 ### Pass 2b — findings, tier changes (not started)
 

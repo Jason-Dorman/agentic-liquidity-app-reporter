@@ -2,7 +2,7 @@
 
 Questions that need Jason's ruling. Nothing that depends on a question is coded before it is answered. Answers are recorded in [DECISIONS.md](DECISIONS.md) and the question is marked closed here, with the date.
 
-**Questions 1 to 12 were closed on 2026-10-07.** Questions 13 and 14 were raised in pass 0a and closed on 2026-10-08. Questions 15 to 18 shaped pass 0b (CI) and were closed on 2026-10-07. Question 19 was found in pass 0b and is open. Questions 20 to 26 shaped pass 1b and were closed on 2026-10-08. Question 27 was found in the first live pull and is open. Question 28 was found in pass 1b and is open. New questions are appended to the second table with the next number and status `open`.
+**Questions 1 to 12 were closed on 2026-10-07.** Questions 13 and 14 were raised in pass 0a and closed on 2026-10-08. Questions 15 to 18 shaped pass 0b (CI) and were closed on 2026-10-07. Question 19 was found in pass 0b and is open. Questions 20 to 26 shaped pass 1b and were closed on 2026-10-08. Question 27 was found in the first live pull and is open. Question 28 was found in pass 1b and is open. Questions 29 to 38 shaped pass 2a and were closed on 2026-10-27. Questions 39 and 40 were found in pass 2a and are open. Questions 41 and 42 were found in the pass 2a review and closed on 2026-10-27. New questions are appended to the second table with the next number and status `open`.
 
 Statuses: `open`, `closed`.
 
@@ -43,6 +43,20 @@ Statuses: `open`, `closed`.
 | Q26 | **`rowsAtLimit` without a sent `limit`.** `attestations` and `structural_facts` use a server default of 100 and echo it. `flow_history` carry-in rows do not count against `limit`. | A default-100 page can be cut silently; a carry-in count would be wrong. | Pass 1b | Use the echoed `limit`; exempt `flow_history` (T-32). | closed |
 | Q27 | **Cover the full week.** Four 168-hour pulls are cut at 5000 rows (see Q24), and the open anomalies exceed the 500-row page. The week statistics of passes 2c to 2e (exceedances daily average, settlement health week values, peg, issuer flows) would be computed over a part of the window. Options: split calls by asset, bridge or series; shorter windows; ask the app for an offset or a higher cap; or compute only over the hours the page covers and say so. | Every week figure names its window; a partial window must not pass as a full one. | Passes 2c, 2d, 2e | none yet; to be proposed with live row counts per filter | open |
 | Q28 | **`run` after a call is "tunnel down" mid-pull.** T-31 rules `pull-only`: save the pack and exit 2. Should `run` do the same and stop before the agent, or go on and write a report whose data quality section names the hidden views? | Spec section 11 says an unreachable API stops the run with no report, and one failed endpoint does not. A tunnel that closes mid-pull is both. | Pass 3b | Stop like `pull-only`: save the pack, exit 2, no report. After reopening the tunnel, `run` pulls again. | open |
+| Q29 | **Typed form of `Derived`.** `TypedDict`, pydantic models, or frozen dataclasses? | `derive.py` writes JSON and reads back the previous file. | Pass 2a | `TypedDict` (T-33) | closed |
+| Q30 | **What `derive` takes as the pack.** `DataPack` lives in `pull.py`, and `derive` imports nothing from the package. | `run --date` will load a pack from disk in pass 3b. | Pass 2a | A `Pack` Protocol in `derive.py` (T-33) | closed |
+| Q31 | **Manifest to data quality rows.** Which flags go where, and how many rows per call? | R-DRV-9: every cut visible. | Pass 2a | One row per cause, `rowsAtLimit` under `truncations` (T-36) | closed |
+| Q32 | **Stub statistics.** What does a statistic hold before its pass lands? | An empty list reads as "none happened". Q27 may keep 2c to 2e blocked. | Pass 2a | Shape plus a `missing` naming the pass (T-35) | closed |
+| Q33 | **Finding the previous `derived.json`.** Which file, and what if it cannot be read? | The comparison base for pass 2b. | Pass 2a | Newest earlier usable one; skip a bad one with a warning (T-37) | closed |
+| Q34 | **`historyStart`.** Fixed 168 hours, or `HISTORY_DAYS`? | The catalogue's history calls send a fixed `hours=168`. | Pass 2a | Fixed 168 hours (T-34) | closed |
+| Q35 | **Fixture provenance.** Build plan task 5 said a comment line per JSON file; JSON has no comments. | Every fixture must name its source. | Pass 2a | The README index table, plus a golden `derived/first-run.json` | closed |
+| Q36 | **`derived.json` after a tunnel-down pull.** | The pack is saved anyway (T-31). | Pass 2a | Derive and save, then exit 2 (T-38) | closed |
+| Q37 | **`corridorTierChanges` has no room for `missing`.** It was a bare list. | Pass 2b must say when `confidence` failed. | Pass 2a | Make it an object with `changes` and `missing` (T-35) | closed |
+| Q38 | **A previous `derived.json` whose `runDate` is missing or wrong.** | `derive` reads `previous["runDate"]`. | Pass 2a | Skip it with a warning, like an unreadable file (T-37) | closed |
+| Q39 | **An absent declared truncation flag.** When a declared flag is absent from the body and none is true, the manifest gives `truncated: null`, which looks the same as an endpoint that declares no flag. `dataQuality` then has no row for it. | Spec section 11: no view is skipped silently. Every live body on 2026-10-08 held its flags, so it has not happened yet. | Nothing yet | `pull.py` lists absent declared flags in a new manifest field, and `derive` adds a `truncations` row saying it cannot tell whether the page was cut. | open |
+| Q40 | **What `HISTORY_DAYS` sets.** RUNBOOK says "days of history pulled and past reports fed in", but the catalogue's history calls send a fixed `hours=168` and `historyStart` is fixed at 168 hours (T-34). | With any value other than 7, the setting and the pull disagree. | Pass 6a (past reports) | Settle with question 27, which reworks the history calls: either `pull.py` reads `HISTORY_DAYS`, or RUNBOOK says it sets the past reports only. | open |
+| Q41 | **`failedCalls` from a pack whose rows and records do not pair.** A failure record with no manifest row was dropped, and so was a failed row with no record. | Rule 11; `run --date` loads packs from disk in pass 3b. | Pass 2a | A placeholder `error` for a row without a record; records without a row follow by name (T-39) | closed |
+| Q42 | **A 2xx body that is not a JSON object.** Every manifest flag is `null`, so `dataQuality` had no row for it. | Rule 11: the view was skipped silently. | Pass 2a | A `failedCalls` row, found by `derive` from `pack.raw` (T-39) | closed |
 
 ## Closed
 
@@ -73,3 +87,15 @@ Statuses: `open`, `closed`.
 | Q24 | 2026-10-08 | Pull as specced in pass 1b; record the cuts; the fix is question 27. | DECISIONS rulings table |
 | Q25 | 2026-10-08 | Every key under `coverage.legs` is a leg. | DECISIONS T-32 |
 | Q26 | 2026-10-08 | Sent `limit`, else echoed; `flow_history` exempt. | DECISIONS T-32 |
+| Q29 | 2026-10-27 | `TypedDict`. | DECISIONS T-33 |
+| Q30 | 2026-10-27 | A `Pack` Protocol in `derive.py`. | DECISIONS T-33 |
+| Q31 | 2026-10-27 | As proposed; the absent flag is question 39. | DECISIONS T-36 |
+| Q32 | 2026-10-27 | Shape plus a section-level `missing`. | DECISIONS T-35 |
+| Q33 | 2026-10-27 | Newest earlier usable file; skip a bad one with a warning. | DECISIONS T-37 |
+| Q34 | 2026-10-27 | Fixed 168 hours; the setting gap is question 40. | DECISIONS T-34 |
+| Q35 | 2026-10-27 | README index table; golden `derived/first-run.json`. | DECISIONS rulings table, tests/fixtures/README.md |
+| Q36 | 2026-10-27 | Derive and save, then exit 2. | DECISIONS T-38 |
+| Q37 | 2026-10-27 | `corridorTierChanges` is an object with `changes` and `missing`. | DECISIONS T-35, DATA-CONTRACTS section 3 |
+| Q38 | 2026-10-27 | Skip it with a warning. | DECISIONS T-37 |
+| Q41 | 2026-10-27 | Placeholder `error`; records without a row follow by name. | DECISIONS T-39 |
+| Q42 | 2026-10-27 | A `failedCalls` row, found by `derive`. | DECISIONS T-39 |

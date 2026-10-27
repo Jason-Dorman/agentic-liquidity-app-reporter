@@ -73,7 +73,7 @@ Grouped by module. Each line is a test or a small group of tests.
 - Connection refused and connection reset are `TunnelDown` naming host and port; a timeout is `Timeout`; a failed name lookup is `Unreachable` and never says "tunnel down" (T-18, T-26).
 - Health (`pull.check_health`): one GET of `/health`; the spec example gives the three T-19 fields; `degraded` and `down` still count as reachable; an absent field shows as `missing` and a null as `null`; a 200 body that is not a JSON object is `NotJson`; a failed call is passed through (T-27).
 - Health unreachable: nothing written, exit 2, message says "tunnel down" on connection refused (R-RUN-4, T-18).
-- `store.py`: pack paths by date; `save_pack` round-trips bytes exactly; failure records and the manifest are written with sorted keys and two-space indent; a re-pull leaves nothing from the earlier pull and keeps `derived.json` (T-30); a name that is not a plain file name is refused, in raw or failures, before anything is removed (R-PULL-2, T-28).
+- `store.py`: pack paths by date; `save_pack` round-trips bytes exactly; failure records and the manifest are written with sorted keys and two-space indent; a re-pull leaves nothing from the earlier pull and keeps `derived.json` (T-30); a name that is not a plain file name is refused, in raw or failures, before anything is removed (R-PULL-2, T-28). `save_derived` writes sorted keys and keeps nulls. The previous `derived.json` (T-37): none without `data/`; the newest earlier date wins; today and later dates never count; a pack without `derived.json` is passed over without a warning; a folder that is not a real date is ignored; a file that is not JSON, not UTF-8, not an object, without `runDate`, with another date's `runDate`, nested too deep to parse, a folder, or in a folder that cannot be searched (skipped when run as root) is skipped with one warning and the next older one is used; a bad date folder does not end the search; none usable is a first run.
 - `pull-only` after the health check: the pack is saved under the run's UTC date in the root the wiring names; an HTTP error, a timeout or an unreachable call exits 0; any "tunnel down" call exits 2 with the hint and the pack saved; a long error is one log line, its whitespace collapsed and cut to 300 characters (T-31, RUNBOOK section 9).
 
 ### `derive.py`
@@ -87,6 +87,7 @@ Grouped by module. Each line is a test or a small group of tests.
 - Flow history (R-DRV-13): a gap is a held status, not an interpolated value (rule 10); a `carry_in` row sets the window-head state and is never counted as a transition; a chain in state `unknown_truncated` or `no_history` has `null` counts and a `missing` note; no magnitude field appears in the statistic.
 - A finding whose `severity` changed appears in `changed` with `from` and `to` (R-DRV-1).
 - A corridor whose `recommendation` changed appears in `corridorTierChanges` (R-DRV-2).
+- Pass 2a (T-33 to T-36): the window fields come from the manifest and `historyStart` is 168 hours before `windowEnd`; every statistic key is present and each stub's `missing` names its pass; a stub's count is `null`, never `0`; a run with a previous one names its date. Data quality: one `failedCalls` row per failure record, whole error, manifest order; a failed row without its record has the placeholder error; records without a manifest row follow, by name; a 2xx body that is not a JSON object (HTML, a list, a string, empty, not UTF-8, nested too deep) is a failed call (T-39); one `truncations` row per cause (a flag set true, a page at its limit), two for a call cut both ways, none for `false` or `null`; an absent coverage leg is a row with `state: null`; `partialTotals` from `totalExceedsRows`; a real `pull()` through `FakeClient` gives rows that match its manifest. The first-run output equals the golden `derived/first-run.json`, keys sorted. `derive.py` imports nothing from the package.
 
 ### `schema.py`
 
@@ -154,7 +155,7 @@ Grouped by module. Each line is a test or a small group of tests.
 - `run` end to end with fakes: report `.json` and `.md` saved, watch list written, uploads deleted, exit 0 (R-RUN-3, R-RUN-5).
 - Logging (T-28): with a bare root logger, as in a real run, the health line reaches stderr as `<UTC time> INFO health: ...` and stdout stays empty; a bad setting is one timestamped line; no `httpx` record reaches the log. `caplog` alone cannot show this, since it captures records whatever the handlers are. The tunnel hint appears on "tunnel down" only.
 - `pull-only` in pass 1a: health reachable logs the three fields and exits 0; it needs no key (Q14); connection refused exits 2 with "tunnel down" and writes nothing; an HTTP 500, a timeout, an unreachable host and a non-JSON body each exit 2 and write nothing; a bad setting exits 1 before any call (R-RUN-4, R-RUN-8, T-09).
-- `pull-only` writes the pack and `derived.json`, calls no Messages API (R-RUN-6). From pass 2a.
+- `pull-only` writes the pack and `derived.json`, calls no Messages API (R-RUN-6). From pass 2a: a first run's `dataQuality.failedCalls` matches the manifest's failed rows; the next day's run names the day before as `previousRunDate`; a re-pull on the same date rebuilds `derived.json` and does not compare with itself; a tunnel-down pull still writes `derived.json` and exits 2 (T-38).
 - `run --date` with a saved pack makes no pull call and proceeds from the pack (R-RUN-7).
 - The health body's `status`, `corridorsMonitored` and `updatedAt` appear in the log (R-RUN-8).
 - `render` re-renders a saved report to the same markdown as the golden file.
@@ -173,7 +174,7 @@ tests/fixtures/
   derived/day-two.json
 ```
 
-Fixtures hold no real depth figures beyond what the API spec itself shows.
+Fixtures hold no real depth figures beyond what the API spec itself shows. Each file's source is a row in the index table of `tests/fixtures/README.md`; JSON holds no comment line (Q35). The `derived/` files are not API examples: each is the expected `derive` output for a pack built in `tests/test_derive.py`. `derived/first-run.json` was added in pass 2a.
 
 ## 6. Commands
 
